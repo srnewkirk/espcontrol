@@ -1,0 +1,33 @@
+# Private-fork Stage 2 experiment, using the existing stock factory package.
+# Compile in the pinned Docker image with the repository at /config.
+packages:
+  stock: !include ../../builds/guition-esp32-p4-jc4880p443.factory.yaml
+
+substitutions:
+  cover_art_placeholder_file: "/config/common/assets/cover_art_placeholder.svg"
+
+esphome:
+  build_path: /config/builds/.esphome/build/espcontrol-jc4880p443
+
+esp32:
+  partitions: /config/common/device/partitions_16mb_card_images.csv
+
+web_server:
+  js_include: /config/docs/public/webserver/embedded/www.js
+
+external_components:
+  - source:
+      type: local
+      path: /config/components
+    components: [jc4880_camera_capture]
+
+jc4880_camera_capture:
+  id: onboard_capture
+  i2c_id: bus_a
+
+# Keep both firmware versions unchanged during this controlled comparison.
+switch:
+  - id: !extend c6_auto_update_switch
+    restore_mode: ALWAYS_OFF
+  - id: !extend auto_update_switch
+    restore_mode: ALWAYS_OFF

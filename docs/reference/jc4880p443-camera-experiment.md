@@ -1,6 +1,6 @@
 ---
 title: JC4880P443 camera sensing experiment
-description: Stage 1 baseline, camera evidence, and proposed motion and relative ambient light experiments for a Guition JC4880P443C-I-W-Y running ESPControl.
+description: Stock baseline, Stage 2 onboard capture, and proposed motion and relative ambient light experiments for a Guition JC4880P443C-I-W-Y running ESPControl.
 ---
 
 # JC4880P443 camera sensing experiment
@@ -9,8 +9,11 @@ Stage 1 record, 1 October 2026. Determine whether the Guition
 JC4880P443C-I-W-Y camera can detect room activity and distinguish useful room
 light levels before adding external sensors. The stock ESPControl target builds,
 and this physical display's vendor log confirms an OV02C10 camera. Capture,
-motion, and ambient-light implementation require separate approval for later
+motion, and ambient-light implementation required separate approval for later
 stages. No firmware or device YAML changed in Stage 1; no flash was performed.
+Stage 2 was subsequently approved; its opt-in capture configuration and
+physical test results are recorded below. Motion and ambient-light algorithms
+remain unimplemented.
 
 ## Fork and contribution boundary
 
@@ -27,7 +30,7 @@ fork branch after push. Fetch upstream, then merge or rebase deliberately onto
 this focused branch for future updates. Do not rewrite or merge upstream.
 
 GitHub reports this fork as **public**, not access-restricted. Private development
-here means user-owned experimental work with no upstream contribution. No PR,
+here means user-owned experimental work with no upstream contribution. No upstream PR,
 issue, discussion, review, comment, upstream push, merge, or upstream automation
 is authorized. Any useful upstream finding stays in this document until a
 separate user-authorized task. This boundary and the exact user-requested branch
@@ -320,5 +323,154 @@ supported RAW10-to-YUV conversion; actual capture minimum rate and buffer layout
 exposure-to-frame synchronization; ESPControl runtime and thermal baselines;
 whether the existing C6 firmware needs the project's recovery/update procedure.
 These are Stage 2 verification items, not missing proof that the camera exists.
+
+## Stage 2 capture configuration
+
+Stage 2 was explicitly approved on 2026-10-01. Motion and ambient-light
+algorithms still require separate approval. The opt-in entry point is
+`devices/guition-esp32-p4-jc4880p443/camera-capture.yaml`; the normal factory
+target and existing device packages are unchanged. It includes the stock
+factory package and adds `components/jc4880_camera_capture` locally.
+
+The sensor driver is adapted from the pinned HomeTiles example above, retaining
+its Apache-2.0 license, notices, mode tables, and provenance. This avoids the
+unmerged OV02C10 `esp_video` dependency. CSI and ISP use the ESP-IDF components
+already included in the stock framework. ESPHome registers their dependencies
+with `include_builtin_idf_component`; no generated build files are edited.
+
+The driver attaches sensor address `0x36` to ESPControl's existing I2C bus using
+`i2c_master_get_bus_handle`. It does not recreate the bus, change touch pins,
+or acquire another board abstraction. The existing display package supplies
+LDO3 at 2.5 V. The HomeTiles window override produces 1280x720 RAW10, one CSI
+lane at 400 Mbit/s, with ISP conversion to RGB565. Two aligned PSRAM buffers
+consume 3,686,400 bytes, plus a 14,400-byte 160x90 luminance grid.
+
+Capture begins 30 seconds after startup. The sensor runs at its mode-table
+rate; only the grid sampling is limited to 2 Hz. Each grid pixel centre-samples
+an 8x8 block. This establishes capture feasibility; spatial averaging and
+noise handling belong to the later experiments. Exposure and gain remain at
+the fixed mode-table settings. There is no automatic exposure, JPEG encoding,
+image preview, network frame transport, motion score, brightness entity, or
+classification. The optional configuration disables automatic P4 and C6
+firmware updates so a stock release cannot silently replace this experiment
+during the controlled comparison. Manual update controls remain available.
+
+The ISR freezes a completed buffer during sampling and supplies the other
+buffer for subsequent DMA frames. Cache synchronization occurs before CPU
+reads. Initialization failure or a five-second frame timeout stops capture
+and marks this component failed. The normal display/network components remain
+in place. Health logs every ten seconds report cumulative CSI frames and
+sampled grids, incomplete frames, a checksum, conversion time, loop gaps,
+internal free/largest heap block, and PSRAM free space. Conversion time is
+not total CPU utilization, and loop gaps are not a measurement of physical
+touch latency.
+
+Compile with the pinned image and a Linux Git snapshot at `/config`:
+
+```sh
+esphome compile /config/devices/guition-esp32-p4-jc4880p443/camera-capture.yaml
+```
+
+The native RGB565 conversion check can run with:
+
+```sh
+g++ -std=c++17 -Wall -Wextra -Werror -I. \
+  tests/firmware/jc4880_capture_grid_test.cpp -o /tmp/jc4880-grid-test
+/tmp/jc4880-grid-test
+```
+
+### Local recovery and stock hardware baseline
+
+The connected display is COM13, P4 revision 1.3, 16 MB flash. Secure boot and
+flash encryption are disabled. Before writing firmware, the full flash was
+read to ignored local file `.cache/camera-stage2/vendor-p4-16mb.bin`, exactly
+16,777,216 bytes, SHA256
+`f6e67898c4543aeaa709da4a9ecca34ebfd4e6cddcddd8198fdccf11cabe3fee`.
+`verify_flash` compared the full backup with the device and reported
+`verify OK (digest matched)`. This backup may contain vendor configuration;
+keep it local and outside Git.
+
+Esptool 5.3.1 stopped repeatedly near address `0x491000`. ESP-IDF's esptool
+4.12.0 read that region, completed the full backup, and verified its digest.
+Use the verified working 4.12.0 environment for this physical panel. To restore
+the P4 vendor firmware from the repository root, use this explicit command:
+
+```powershell
+& .cache/camera-stage2/venv-idf/Scripts/python.exe -m esptool `
+  --chip esp32p4 --port COM13 write_flash 0 `
+  .cache/camera-stage2/vendor-p4-16mb.bin
+```
+
+This restores the P4 flash only; it does not restore a separately changed C6.
+No C6 firmware update was deliberately performed for the experiment.
+
+The unchanged stock factory target rebuilt successfully with the Stage 1
+versions and size figures. Its factory image was uploaded at offset zero;
+the upload hash verified. A captured stock boot reported 32 MB PSRAM, GT911
+at `0x5D`, the MIPI display, an initialized setup AP, and C6 firmware 2.3.2.
+It subsequently reported a successful boot. Physical rendering/touch response,
+normal Wi-Fi provisioning, and Home Assistant operation require user testing;
+successful initialization logs do not establish those results.
+
+### Automated validation
+
+The unchanged stock and opt-in capture configurations compile successfully
+with ESPHome 2026.9.1 / ESP-IDF 5.5.5. Capture uses 5,695,172 application
+bytes (78.3% of the application partition) and 220,896 static RAM bytes
+(38.3%): increases of 24,176 flash bytes and 16,432 static RAM bytes over
+stock. Runtime DMA buffers are additional PSRAM allocations, not part of
+these static RAM figures.
+
+All 73 native firmware tests pass, including known RGB565 colors, a monotonic
+gray ramp, the frame-clock timing regression, and millisecond rollover.
+Device profiles and the device matrix pass. The two imported sensor-register
+arrays match their pinned-source hashes. Documentation builds and passes
+the site's internal link/anchor checks.
+
+`npm run prepare:ci` was also attempted in the Linux snapshot. It does not
+entirely pass: untouched baseline checks report a missing web-asset firmware
+version declaration, a stored web-bundle SHA mismatch, and stale card-runtime
+coverage fixtures. These were reproduced after restoring temporary generated
+outputs; no related source was changed. The native firmware suite passes when
+the image's bundled CMake is on PATH. The installer static check passes, but
+its browser check is unavailable in this build image because Chromium's shared
+libraries are missing; Windows also lacks the matching browser executable.
+Do not describe the whole CI suite as passing or merge on this evidence alone.
+
+### Physical capture measurements
+
+A ten-minute USB observation of the corrected capture code reached uptime
+593 seconds, 16,890 CSI frames, and 1,118 sampled grids. Capture starts after
+the initial 30-second stock interval; the steady health-sample comparison
+covers uptime 43 to 593 seconds (550 seconds of capture).
+
+| Measurement | Observed result |
+| --- | --- |
+| Sampled-grid rate | 1.996 grids/s, targeting 2 Hz |
+| CSI frame rate | 30.165 frames/s; sensor capture remains continuous |
+| Incomplete frames / capture errors | 0 / 0 |
+| Grid conversion wall-time fraction | 0.712%; includes cache sync, sampling and checksum, excludes total CSI/ISP/ISR cost |
+| Maximum grid conversion duration | 3,935 microseconds |
+| Largest loop gap after the first startup reporting window | 30 ms |
+| Internal free heap at the final sample | 354,512 bytes |
+| Largest free internal block | 270,336 bytes |
+| Free PSRAM during the health samples | 20,669,012 to 20,669,044 bytes |
+| PSRAM before camera initialization | 24,355,876 bytes |
+| Restarts during observation | None after the intentional observation reset |
+
+The first frame produced a 160x90 grid with checksum `0db85d5a`, value range
+10 to 16, and 3,708 microseconds conversion time. Subsequent checksums changed;
+that alone does not distinguish scene detail from sensor noise. Image content
+and orientation have not been visually verified. These measurements were
+collected with the idle onboarding UI/setup AP, not configured Home Assistant
+cards, artwork, or audio load. They demonstrate sustained capture and bounded
+memory use; they do not establish useful motion detection or light measurement.
+
+The same capture code is used in the final configuration, which additionally
+disables P4 automatic updates. A separate post-upload startup check confirms
+that configuration. A 24-hour soak, physical temperature measurement, visible
+display/touch responsiveness, normal Wi-Fi/Home Assistant behavior, and visual
+frame verification remain pending. Keep this experiment out of `main` until
+the user confirms the physical tests.
 External temperature/humidity, lux and mmWave sensors, CAD and enclosure work
 remain out of scope. No upstream/community-facing action was performed.
