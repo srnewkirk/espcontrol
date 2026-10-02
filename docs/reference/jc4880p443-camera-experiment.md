@@ -474,3 +474,42 @@ frame verification remain pending. Keep this experiment out of `main` until
 the user confirms the physical tests.
 External temperature/humidity, lux and mmWave sensors, CAD and enclosure work
 remain out of scope. No upstream/community-facing action was performed.
+
+### Native interface deployment correction
+
+The configured panel initially used an older custom room-page package. That
+package and its startup navigation override were removed: camera measurements
+must use the native EspControl interface. The existing wall panel's eight native
+groups were imported through the native configuration API, changing the hardware
+profile only. Personal cards, preferences, credentials, and recovery images stay
+outside Git.
+
+For this private deployment, prepare a disposable source snapshot before building:
+
+```sh
+python scripts/prepare_jc4880_camera_profile.py --root /config --node /opt/node/bin/node
+```
+
+This uses existing device-slot and web generators to make a four-row, two-column
+native grid. It extends the P4 bindings and widgets to eight slots and regenerates
+the matching embedded editor. Set `web_server.js_url: ""` in the private overlay
+so an external six-slot editor cannot replace it. Re-running the preparation is
+safe. Stock manifest/generated outputs remain unchanged in the repository.
+
+Subpages share the grid capacity: the back button leaves seven visible controls
+per subpage. Firmware normalizes imported orders to that limit; larger source
+pages require a separate layout solution. Do not reimport the old wall-panel
+document over subsequent user edits. Use **Settings > Backup > Export** for a full
+backup: the binary native document covers cards but omits display preferences.
+
+The native eight-slot firmware compiled and flashed successfully; the private
+Home Assistant YAML passed ESPHome Builder validation. A configured native-UI
+run reached 2,110 CSI frames and 138 sampled grids at uptime 103 seconds with no
+incomplete frames. Free internal memory was 231,532 bytes and free PSRAM was
+20,487,012 bytes. Web-editor connections caused variable loop gaps, so the earlier
+idle onboarding measurements are not a loaded-UI responsiveness result.
+
+Rotation is user-controlled through native settings. The private profile's initial
+option is 0; restored preferences take precedence. Preserve the user's full backup
+before further uploads. Image content, touch alignment, and control actions still
+require physical verification before motion or brightness drives screen behavior.
