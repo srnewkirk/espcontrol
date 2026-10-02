@@ -5,6 +5,12 @@ enable_testing()
 include(CheckCXXSourceCompiles)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(camera_motion_policy_test camera_motion_policy_test.cpp)
+target_compile_features(camera_motion_policy_test PRIVATE cxx_std_17)
+target_compile_options(camera_motion_policy_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(camera_motion_policy_test PRIVATE ../../components/camera_motion)
+add_test(NAME camera_motion_policy_test COMMAND camera_motion_policy_test)
+
 add_executable(foundation_test foundation_test.cpp)
 target_compile_features(foundation_test PRIVATE cxx_std_17)
 target_compile_options(foundation_test PRIVATE -Wall -Wextra -Werror)

@@ -13,9 +13,67 @@ motion, and ambient-light implementation required separate approval for later
 stages. No firmware or device YAML changed in Stage 1; no flash was performed.
 Stage 2 was subsequently approved; its opt-in capture configuration and
 physical test results are recorded below. Motion and ambient-light algorithms
-remain unimplemented.
+were unimplemented at that point; the current community deployment follows.
 
-## Research checkpoint and current decision
+## Community component deployment (2 October 2026)
+
+The user approved the documented next steps after the research checkpoint.
+The current experiment now uses `components/camera_motion`, adapted from the
+pinned EspControl PR #2034, through the opt-in
+`devices/guition-esp32-p4-jc4880p443/camera-motion.yaml`. Stock device profiles
+remain unchanged. Do not load it alongside `jc4880_camera_capture`; both own
+CSI/ISP. The older capture and manual-exposure revisions remain historical
+diagnostic work and are no longer the private deployment configuration.
+
+The first verification build left wake disabled. Its one-lane 1288x728 RAW10
+mode produced a recognizable room preview using the community RAW8 pipeline,
+automatic exposure, black-level removal and preview tone curve. This passed the
+image-content gate that the earlier fixed-exposure capture had failed. In the
+observed low-light run it used frame length 4,656 lines, exposure up to 4,640
+lines and gain up to 8x. Diagnostics reported 7.6 frames/s, 678 checked pictures,
+mean RAW8 brightness 48 and 22,114,684 bytes free PSRAM. These are a short-run
+observation, not a total CPU measurement, lux calibration or a completed soak.
+Each capture buffer is 937,728 bytes; repeated stop/start checks returned to
+Standby and restarted successfully. Longer memory-stability testing is pending.
+
+The subsequent native-controls build compiled and was flashed to the same panel
+at application offset `0x20000`, with upload hash verification. Native card bytes
+matched the pre-upload backup after both uploads. The eight-slot layout and
+user-controlled rotation remain in place. No stock update or C6 update was
+performed. A final preview returned the motion flag, and the user reported that
+motion detection was working well during physical testing. That confirms an
+initial motion result, not quantified false-trigger rates or every wake/schedule
+scenario.
+
+Native **Settings > Screensaver > Camera Motion** adds sensitivity and live
+preview while retaining the timer's sleep action and timeout. The preview stops
+requesting frames when hidden; camera buffers are released when neither preview,
+Test Mode nor armed motion wake needs them. Motion wake uses the existing
+`screensaver_wake` path and `presence_can_wake_display` policy. The user's saved
+mode was not changed during deployment. HA exposes Motion, Level, Picture
+Brightness, Status, Test Mode, Log Picture and Sensitivity. Test Mode resets off
+on reboot. Picture Brightness is exposure-dependent image brightness, not lux;
+light classification and automatic light-based dimming are not implemented.
+
+The private HA source/config was updated to the community component and local
+EspControl preview hook. Its superseded Exposure Lines/Gain stanza was removed;
+a pre-change configuration backup is retained privately. The full settings and
+vendor recovery backups recorded below remain available. Camera pictures, logs,
+credentials and personal card data are not committed.
+
+Validation: pinned ESPHome 2026.9.1 / ESP-IDF 5.5.5 compile and upload; TypeScript
+check; 152 web unit tests on Linux; all 74 native firmware tests, including the
+imported motion/exposure policy tests. The saved private HA configuration also
+passed ESPHome validation with its source paths relocated into the build container.
+The generated embedded editor was served
+by the physical panel and its Camera Motion option was checked in Chrome.
+Windows web-suite path-separator assertions failed; the Linux run passed.
+Next physical checks: repeated crossings and quiet-room/light-switch false
+triggers, actual screen wake and touch behavior, night schedule priority and a
+24-hour stability run. Relative-light evaluation needs controlled lighting and
+scene trials before connecting any brightness value to display automation.
+
+## Research checkpoint and current decision (historical)
 
 Updated 2 October 2026 after the user requested a broader community search and
 paused further implementation. The earlier stage plans and capture measurements

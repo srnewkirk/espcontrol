@@ -54,6 +54,7 @@ def prepare(root: Path, node: str) -> None:
 
     profiles = build.build_web_devices()
     profiles[slug].update(slots=8, cols=2, rows=4)
+    profiles[slug].setdefault("features", {})["cameraMotion"] = True
     profiles[slug]["portrait"].update(cols=4, rows=2)
     output = root / ".cache/jc4880-native-web"
     request = {"outputDir": str(output), "devices": profiles,

@@ -312,4 +312,19 @@ extern "C" bool espcontrol_allow_web_write(httpd_req_t *raw) {
   httpd_resp_send(raw, "{\"error\":\"Reload the page before changing settings\"}", HTTPD_RESP_USE_STRLEN);
   return false;
 }
+
+// Lets web handlers from other components apply the same optional login as
+// EspControl's own endpoints.
+extern "C" bool espcontrol_authenticate_web_request(esphome::web_server_idf::AsyncWebServerRequest *request) {
+#ifdef USE_WEBSERVER_AUTH
+  using namespace espcontrol::reset;
+  if (auth_username[0] && !request->authenticate(auth_username, auth_password)) {
+    request->requestAuthentication();
+    return false;
+  }
+#else
+  (void) request;
+#endif
+  return true;
+}
 #endif

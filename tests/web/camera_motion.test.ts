@@ -1,0 +1,58 @@
+import {
+  normalizeBackupPanelSettings,
+  normalizeCameraMotionSensitivity,
+  normalizeScreensaverMode,
+  screensaverModeForDevice,
+  screensaverModeOptions,
+} from "../../src/webserver/model/settings";
+
+function equal<T>(actual: T, expected: T, message: string): void {
+  if (actual !== expected) throw new Error(`${message}: expected ${String(expected)}, received ${String(actual)}`);
+}
+
+const CURRENT = {
+  timezone: "UTC",
+  language: "en",
+  clockFormat: "24h",
+  clockFormatOptions: ["24h", "12h"],
+  ntpDefaults: ["0.pool.ntp.org", "1.pool.ntp.org", "2.pool.ntp.org"],
+  ntpServer1: "0.pool.ntp.org",
+  ntpServer2: "1.pool.ntp.org",
+  ntpServer3: "2.pool.ntp.org",
+  coverArtHomeAssistantProtocol: "http",
+  coverArtHomeAssistantHost: "homeassistant.local",
+  coverArtHomeAssistantPort: 8123,
+  coverArtHomeAssistantEndpointMode: "Automatic",
+  autoUpdate: true,
+  updateFrequency: "Daily",
+  updateFrequencyOptions: ["Daily"],
+  screenRotationOptions: ["0"],
+};
+
+export function runCameraMotionSettingsTests(): void {
+  equal(normalizeCameraMotionSensitivity(""), 50, "a missing sensitivity uses the default");
+  equal(normalizeCameraMotionSensitivity("abc"), 50, "an invalid sensitivity uses the default");
+  equal(normalizeCameraMotionSensitivity(0), 1, "sensitivity has a minimum of 1");
+  equal(normalizeCameraMotionSensitivity(250), 100, "sensitivity has a maximum of 100");
+  equal(normalizeCameraMotionSensitivity("37.6"), 38, "sensitivity is a whole number");
+  equal(normalizeCameraMotionSensitivity(5), 5, "low sensitivity values are kept");
+
+  equal(normalizeScreensaverMode("camera"), "camera", "camera is a screensaver mode");
+  equal(normalizeScreensaverMode("bogus"), "disabled", "unknown modes disable the screensaver");
+
+  const plainModes = screensaverModeOptions(false).map((option) => option[0]).join(",");
+  equal(plainModes, "disabled,timer,sensor", "panels without a camera do not offer Camera mode");
+  const cameraModes = screensaverModeOptions(true).map((option) => option[0]).join(",");
+  equal(cameraModes, "disabled,timer,sensor,camera", "camera panels offer Camera mode last");
+
+  equal(screensaverModeForDevice("camera", true), "camera", "camera panels restore Camera mode");
+  equal(screensaverModeForDevice("camera", false), "timer", "other panels restore Camera mode as Timer");
+  equal(screensaverModeForDevice("sensor", false), "sensor", "other modes restore unchanged");
+
+  const restored = normalizeBackupPanelSettings(
+    { screensaver_mode: "camera", camera_motion_sensitivity: 7 }, CURRENT);
+  equal(restored.screensaverMode, "camera", "backups keep Camera mode");
+  equal(restored.cameraMotionSensitivity, 7, "backups keep the camera sensitivity");
+  const older = normalizeBackupPanelSettings({ screensaver_mode: "timer" }, CURRENT);
+  equal(older.cameraMotionSensitivity, 50, "backups without a sensitivity use the default");
+}

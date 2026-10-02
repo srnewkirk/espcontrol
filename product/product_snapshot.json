@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "generatedBy": "scripts/check_product_snapshot.py --update",
   "sources": {
-    "deviceProfiles": "devices/manifest.json",
-    "cardContract": "product/v2/card_contract.json",
-    "entityNames": "product/v2/entity_names.json",
-    "icons": "product/v2/icons.json",
-    "compatibilityFixtures": "product/v2/product_compatibility.json"
+    "deviceProfiles": "devices\\manifest.json",
+    "cardContract": "product\\v2\\card_contract.json",
+    "entityNames": "product\\v2\\entity_names.json",
+    "icons": "product\\v2\\icons.json",
+    "compatibilityFixtures": "product\\v2\\product_compatibility.json"
   },
   "summary": {
     "deviceProfiles": 8,
     "cardTypes": 43,
-    "entityNames": 102,
+    "entityNames": 103,
     "icons": 364,
     "structuralIcons": 22,
     "compatibilityFixtureGroups": 2
@@ -7084,6 +7084,18 @@
         ],
         "groups": [
           "settings"
+        ]
+      },
+      {
+        "key": "camera_motion_sensitivity",
+        "domain": "number",
+        "name": "Camera Motion: Sensitivity",
+        "objectIds": [
+          "camera_motion__sensitivity",
+          "camera_motion_sensitivity"
+        ],
+        "groups": [
+          "settings_camera"
         ]
       },
       {

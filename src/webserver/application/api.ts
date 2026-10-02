@@ -36,6 +36,7 @@ export interface ApplicationApiFeature {
     postSelectWithObjectId(name?: string, objectId?: string, option?: any, errorMessage?: string): void;
     postSelectWithObjectIds(name?: string, objectIds?: string[], option?: any, errorMessage?: string): void;
     postScreensaverTimeout(value?: any): void;
+    postCameraMotionSensitivity(value?: any): void;
     postScreensaverAction(value?: any): void;
     postScreensaverDimmedBrightness(value?: any): void;
     postScreensaverDimmedBrightnessDay(value?: any): void;
@@ -205,6 +206,9 @@ export function createApplicationApiFeature(
         }
         postNumberWithObjectIds(entityName("screensaver_timeout"), entityObjectIds("screensaver_timeout"), value);
     }
+    function postCameraMotionSensitivity(this: any, value?: any) {
+        postNumberWithObjectIds(entityName("camera_motion_sensitivity"), entityObjectIds("camera_motion_sensitivity"), value);
+    }
     const SCREENSAVER_ACTION_UNAVAILABLE = "Screen dimmed screensaver is not available on this firmware. Update the device firmware, then reload this page.";
     function postScreensaverAction(this: any, value?: any) {
         postSelectWithObjectIds(entityName("screen_saver_action"), entityObjectIds("screen_saver_action"), screensaverActionOption(value), SCREENSAVER_ACTION_UNAVAILABLE);
@@ -293,6 +297,7 @@ export function createApplicationApiFeature(
         postSelectWithObjectId,
         postSelectWithObjectIds,
         postScreensaverTimeout,
+        postCameraMotionSensitivity,
         postScreensaverAction,
         postScreensaverDimmedBrightness,
         postScreensaverDimmedBrightnessDay,
