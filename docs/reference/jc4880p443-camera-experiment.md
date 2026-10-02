@@ -15,6 +15,96 @@ Stage 2 was subsequently approved; its opt-in capture configuration and
 physical test results are recorded below. Motion and ambient-light algorithms
 remain unimplemented.
 
+## Research checkpoint and current decision
+
+Updated 2 October 2026 after the user requested a broader community search and
+paused further implementation. The earlier stage plans and capture measurements
+below are historical records. This checkpoint supersedes their next-action
+instructions; recording it does not authorize another firmware change or flash.
+
+**Recommended starting point:** adapt the existing EspControl camera-motion
+component described below, using HomeTiles and the vendor example to verify the
+JC4880P443 hardware assumptions. This is a recommendation pending implementation,
+not a tested solution on this panel. The earlier investigation missed this
+EspControl PR and reused only part of HomeTiles' image-processing pipeline.
+Continue from the existing community implementations rather than trialling more
+manual exposure values without a verified capture configuration.
+
+### Broader source review
+
+| Source and revision | Evidence inspected | Limits and intended use |
+| --- | --- | --- |
+| [EspControl camera-motion PR #2034](https://github.com/jtenniswood/espcontrol/pull/2034), head `ffc2886c79c133d2d6e64135e2087c5cf4da789c` | Author reports physical testing on the 7-inch JC1060P470 V2, including motion wake and repeated camera start/stop. The [component source](https://github.com/infamy/espcontrol/tree/ffc2886c79c133d2d6e64135e2087c5cf4da789c/components/camera_motion) includes automatic exposure, longer frame timing for dim rooms, sensitivity, preview, HA diagnostics, and release of capture buffers when stopped. | Closed without merging. The maintainer declined onboard-camera use on privacy grounds; this is a project-policy decision, not evidence of technical failure or success. Best native integration candidate, but the author's hardware results have not been independently reproduced here and the 4.3-inch profile is not covered. |
+| [HomeTiles exact-board profile](https://github.com/GalusPeres/HomeTiles/blob/a980aa752a8af89e268396e17eb35af726d2c3ff/src/devices/guition_jc4880p443_portrait/README.md), revision `a980aa752a8af89e268396e17eb35af726d2c3ff`; [current support notes](https://galusperes.github.io/) | Contributor reports working camera, display, touch, rotation and OTA on JC4880P443C_I_W. The inspected capture code includes automatic exposure/white balance, colour correction, gamma and black-level processing omitted from our initial capture adaptation. | Published release-image validation remains pending. Strong exact-board reference, but a different application architecture; contributor testing is not our physical verification. |
+| [sullb ESPHome CSI component](https://github.com/sullb/esphome-p4-csi-camera/tree/461aa9b178be63b40e1bb7c1f967c971640be600), revision `461aa9b178be63b40e1bb7c1f967c971640be600` | Author reports OV02C10 streaming to HA on a 10.1-inch Guition. | Explicitly experimental, seeking a maintainer, and untested alongside MIPI DSI/LVGL. Its I2C and LDO ownership requires adaptation. Secondary reference, not a validated drop-in for this panel. |
+| [Tasmota P4 field discussion](https://github.com/arendst/Tasmota/discussions/24497) and the pinned sources in the earlier reuse table | Community reports capture on Guition P4 hardware and discusses exposure, colour and sensor-mode issues. Existing motion code provides an independent precedent. | Different firmware and camera paths. Useful comparison, not evidence that an EspControl port is complete. |
+| [Guition P4 examples](https://github.com/guitionofficial/P4-series), exact-board archive pinned by SHA256 below; [Espressif video documentation](https://docs.espressif.com/projects/esp-video-components/en/latest/esp32p4/Get_Started/index.html) | Vendor camera/display demo and official CSI/ISP, sensor and automatic image-processing infrastructure. | Hardware and pipeline references rather than a finished EspControl solution. [OV02C10 driver PR #46](https://github.com/espressif/esp-video-components/pull/46) was still open and unmerged at this checkpoint; do not assume it is available in a stock dependency release. |
+
+Also inspected [profi-max's JC8012 board-support project](https://github.com/profi-max/JC8012P4A1_BSP_ESP32P4)
+and [p1ngb4ck's Guition schematics/examples](https://github.com/p1ngb4ck/unofficial_guition_esp32p4_repo).
+These are supporting hardware references, not verified finished camera-motion
+solutions for the JC4880P443. They were not selected as implementation dependencies,
+so their moving default branches must be pinned before any future code reuse.
+
+The native EspControl candidate supports both two-lane 1920x1080 and one-lane
+1288x728 RAW10 modes. The smaller resolution matches the recorded vendor log;
+that match alone does not establish lane wiring, timing or working exposure.
+It reduces images to a 32x18 grid, compensates for global brightness drift,
+and exposes a 320x180 diagnostic preview. Review and adapt that existing design
+before deciding whether the earlier proposed 160x90 algorithm is needed.
+
+Its Picture Brightness diagnostic measures image brightness under automatic
+exposure; it is not calibrated lux or a validated room-light classifier.
+Camera motion also does not establish stationary-person occupancy. Reliable
+relative-light measurement remains a separate experiment with exposure/gain
+and scene-dependence checks.
+
+### Resume and validation gates
+
+When the user authorizes implementation again:
+
+1. Review the pinned EspControl component against the current EspControl/ESPHome
+   versions, shared touch I2C and display LDO ownership. Preserve source licences
+   and notices; confirm the exact-board sensor mode against HomeTiles/vendor code.
+2. Reconcile the unflashed manual-exposure configuration recorded below before
+   building. Preserve the user's native cards, settings and rotation backup.
+3. First demonstrate recognizable scene detail in the actual low-light room,
+   with correct camera orientation and automatic-exposure settling. A successful
+   compile, changing checksum or contrast-stretched noise is insufficient.
+4. Validate native preview, sensitivity, test mode, HA motion/status/brightness
+   diagnostics and screen wake. Confirm manual touch wake and the existing night
+   schedule, repeated start/stop memory recovery, and stable display/network use.
+5. Measure motion latency and false triggers under light switches, shadows and
+   quiet-room conditions, then run the resource and soak comparisons below.
+   Record physical results separately from automated checks. Do not connect an
+   unvalidated brightness reading to automatic dimming or claim lux accuracy.
+
+### Deployment and recovery state at the checkpoint
+
+- Interface changes were committed and pushed as `4ef1a5929`. The panel runs the
+  native eight-slot interface; rotation is controlled by the user's settings.
+- The diagnostic snapshot build was compiled and flashed to COM13 at application
+  offset `0x20000`, with upload hash verification. A decoded 160x90 frame had
+  values 10 to 18, mean about 13.9, and showed nearly flat noise without usable
+  scene detail. The user confirmed an uncovered lens facing a low-light but lit
+  room. The cause remains unresolved; do not infer that the room is unlit.
+- Preview/decoder source changes remain uncommitted. The decoder's four tests
+  and the RGB565 conversion check passed; these verify transport/conversion,
+  not optical image quality or motion detection.
+- Manual Exposure Lines/Gain controls exist in pending source and the private
+  HA configuration share, but that firmware revision was **not flashed**. Those
+  controls are not established as working on the currently running firmware.
+  The build container was stopped when implementation was paused.
+- Full native settings and card backups were verified in ignored local directory
+  `.cache/camera-stage2/settings-backups/20261002T210902_507Z` and matching private
+  share directory `\\homeassistant.dmz\config\esphome\jc4880-camera-experiment\backups\20261002T210902_507Z`.
+  The export contains eight groups and 59 settings, including rotation 180.
+  Credentials, card contents, logs, images and backups remain outside Git.
+- Motion wake and relative ambient-light algorithms are not deployed. No firmware,
+  device settings or private configuration was changed by the broader source
+  review or this documentation checkpoint. The earlier verified vendor backup
+  and restore procedure below remain the recovery reference.
+
 ## Fork and contribution boundary
 
 Working fork: [srnewkirk/espcontrol](https://github.com/srnewkirk/espcontrol).
@@ -513,3 +603,46 @@ Rotation is user-controlled through native settings. The private profile's initi
 option is 0; restored preferences take precedence. Preserve the user's full backup
 before further uploads. Image content, touch alignment, and control actions still
 require physical verification before motion or brightness drives screen behavior.
+
+### On-demand image verification (pending source; see checkpoint)
+
+The opt-in capture YAML exposes a diagnostic **Camera: Capture Preview** button.
+After capture starts, press it once while collecting the panel's USB serial log.
+The next sampled 160x90 luminance grid is copied into a temporary 14,400-byte
+PSRAM buffer. Small hexadecimal log chunks are emitted across successive loops,
+then the copy is freed. The existing CSI buffers and 2 Hz sampling stay active.
+Repeated requests during transfer are ignored. This is a diagnostic snapshot,
+not a Home Assistant camera entity or continuous image stream.
+
+Decode the private log locally:
+
+```sh
+python scripts/decode_jc4880_preview.py capture.log --output .cache/camera-preview
+python tests/firmware/test_jc4880_preview.py
+```
+
+The decoder rejects missing, duplicated, out-of-order, or corrupt chunks using
+the device's frame checksum. It saves the original grayscale PNG, a separate
+min/max contrast-stretched view, and a measurement summary. The contrast view is
+only for inspecting scene detail; use the unchanged pixels for future brightness
+measurements. Keep captured logs and images private and outside Git.
+
+Check the actual field of view and recognizable scene detail before motion work.
+A nearly flat noisy frame must be investigated as an exposure, lens, or capture
+problem rather than treated as evidence that frame differencing works. Confirm
+health logs and UI response during snapshot transfer, then measure motion and
+relative brightness before connecting either to screen behavior.
+
+The unflashed revision adds two temporary Home Assistant configuration numbers,
+**Camera: Exposure Lines** and **Camera: Gain**, to exercise the existing OV02C10
+driver's fixed-exposure controls. Values are clamped to its supported ranges; the reported values change
+only after a successful write. Both return to table defaults on reboot (1,132
+lines, gain 8). Wait for a snapshot to finish before changing them, and allow
+new frames to settle before requesting another snapshot. Exposure changes can
+lower the sensor's CSI rate; the analysis grid still targets 2 Hz. Snapshot logs
+record requested exposure/gain alongside the checksum.
+
+These controls are for diagnosing the image and establishing a useful fixed
+baseline. Do not compare raw brightness between different exposure/gain settings
+as if it were a change in room lighting. They do not implement auto exposure or
+persist a user calibration.
