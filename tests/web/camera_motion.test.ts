@@ -5,6 +5,7 @@ import {
   screensaverModeForDevice,
   screensaverModeOptions,
 } from "../../src/webserver/model/settings";
+import { CAMERA_CONTROLS, normalizeCameraControls } from "../../src/webserver/model/camera_controls";
 
 function equal<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) throw new Error(`${message}: expected ${String(expected)}, received ${String(actual)}`);
@@ -55,4 +56,21 @@ export function runCameraMotionSettingsTests(): void {
   equal(restored.cameraMotionSensitivity, 7, "backups keep the camera sensitivity");
   const older = normalizeBackupPanelSettings({ screensaver_mode: "timer" }, CURRENT);
   equal(older.cameraMotionSensitivity, 50, "backups without a sensitivity use the default");
+  equal(older.cameraControls.camera_auto_dimming, false, "older backups must not enable uncalibrated dimming");
+  const controls = normalizeCameraControls({camera_occupancy_timeout: 0, camera_wake_on_occupancy: false,
+    camera_auto_dimming: "ON", camera_light_dark: "invalid", camera_dim_maximum: 200});
+  equal(controls.camera_occupancy_timeout, 1, "occupancy timeout must be positive");
+  equal(controls.camera_wake_on_occupancy, false, "wake can be disabled independently");
+  equal(controls.camera_auto_dimming, true, "switch state from the panel enables dimming");
+  equal(controls.camera_light_dark, 0.1, "invalid calibration uses its default");
+  equal(controls.camera_dim_maximum, 100, "dimming cannot exceed full brightness");
+  equal(normalizeCameraControls({camera_light_dark: 0.0034}).camera_light_dark, 0.0034,
+    "low-light calibration retains four decimal places");
+  const sensingBackup = normalizeBackupPanelSettings({camera_occupancy_timeout: 45,
+    camera_wake_on_occupancy: false, camera_auto_dimming: true, camera_light_dark: 0.42,
+    camera_light_bright: 4.2, camera_dim_minimum: 15, camera_dim_maximum: 80}, CURRENT);
+  equal(sensingBackup.cameraControls.camera_occupancy_timeout, 45, "backup preserves occupancy timeout");
+  equal(sensingBackup.cameraControls.camera_wake_on_occupancy, false, "backup preserves disabled occupancy wake");
+  equal(sensingBackup.cameraControls.camera_light_bright, 4.2, "backup preserves light calibration");
+  equal(CAMERA_CONTROLS.length, 7, "all occupancy and light settings are covered by backup normalization");
 }

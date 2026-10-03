@@ -1,3 +1,5 @@
+import { CAMERA_CONTROLS } from "../model/camera_controls";
+import { syncCameraControls } from "./camera_controls";
 import type { PanelIdentityBackup } from "../model/panel_identity";
 import type { PanelIdentityFeature } from "./panel_identity";
 import { state } from "../state/app_instance";
@@ -276,6 +278,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 ntp_server_3: state.ntpServer3,
                 screensaver_mode: getActiveScreensaverMode(),
                 camera_motion_sensitivity: state.cameraMotionSensitivity,
+                ...state.cameraControls,
                 presence_sensor_entity: state.presenceEntity,
                 screensaver_camera_entity: state.screensaverCameraEntity,
                 screensaver_metadata_entity: state.screensaverMetadataEntity,
@@ -525,8 +528,14 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     var importedScreensaverMode: any = EspControlModel.screensaverModeForDevice(
                         importedSettings.screensaverMode, cameraMotionSupported);
                     postScreensaverMode(importedScreensaverMode);
-                    if (cameraMotionSupported)
+                    if (cameraMotionSupported) {
                         postCameraMotionSensitivity(importedSettings.cameraMotionSensitivity);
+                        for (const control of CAMERA_CONTROLS) {
+                            const value = importedSettings.cameraControls[control.key];
+                            if (control.domain === "switch") requestApi.postSwitch(control.name, value === true);
+                            else requestApi.postNumber(control.name, value);
+                        }
+                    }
                     postPresenceSensorEntity(importedSettings.presenceSensorEntity);
                     if (controllers.layout.config.features?.cameraScreensaver && state.screensaverCameraSupported)
                         postText(entityName("screen_saver_camera_entity"), importedSettings.screensaverCameraEntity);
@@ -606,6 +615,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     state.screensaverMode = importedScreensaverMode;
                     state._screensaverModeReceived = true;
                     state.cameraMotionSensitivity = importedSettings.cameraMotionSensitivity;
+                    state.cameraControls = importedSettings.cameraControls;
                     state.presenceEntity = importedSettings.presenceSensorEntity;
                     state.screensaverCameraEntity = importedSettings.screensaverCameraEntity;
                     state.screensaverMetadataEntity = importedSettings.screensaverMetadataEntity;
@@ -667,6 +677,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     syncClockScreensaverControls();
                     syncScreensaverTimeoutUi();
                     syncIdleUi(controllers.runtime);
+                    syncCameraControls(controllers.runtime);
                     if (els.setCameraSensitivity) {
                         els.setCameraSensitivity.value = state.cameraMotionSensitivity;
                         els.setCameraSensitivityVal.textContent = state.cameraMotionSensitivity + "%";

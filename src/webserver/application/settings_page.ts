@@ -1,3 +1,4 @@
+import { CAMERA_CONTROLS, normalizeCameraControl } from "../model/camera_controls";
 import { state } from "../state/app_instance";
 import { NTP_SERVER_DEFAULTS } from "../state/app_state";
 import { WEB_UI_COLORS } from "../state/ui_tokens";
@@ -41,7 +42,7 @@ export interface SettingsPageFeature {
     buildSettingsPage(...args: any[]): any;
 }
 
-export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindTextPost">, runtime: UiRuntimeState, core: Pick<CoreFeature, "syncPreviewOrientation">, layout: ApplicationLayoutState, environment: EnvironmentStateFeature, schedule: ScreenScheduleStateFeature, screensaverTimeout: ScreensaverTimeoutFeature, screenRotation: ScreenRotationFeature, appearance: AppearanceFeature, clockBar: ClockBarFeature, entityState: Pick<EntityStateFeature, "entityName" | "entityInput">, shell: Pick<ControlsShellFeature, "createActionButton" | "buildApplyBar">, requestApi: Pick<ApplicationApiFeature, "postText" | "postSelect" | "postScreensaverMode" | "postScreensaverTimeout" | "postCameraMotionSensitivity" | "postHomeScreenTimeout">, statusPreview: Pick<AppStatusPreviewFeature, "appendTimezoneOption" | "syncInput" | "updateClock" | "updateSunInfo" | "updateTempPreview">, artworkPostApi: Pick<ArtworkPostApiFeature, "postPresenceSensorEntity" | "postClockOverlay" | "postMetadataOverlay">, schedulePostApi: Pick<ScreenSchedulePostApiFeature, "postBrightnessMode" | "postDisplayBacklightBrightness" | "postBrightnessDawnTime" | "postBrightnessDuskTime">, clockBarPostApi: Pick<ClockBarPostApiFeature, "postClockBar" | "postClockBarNightMode" | "postBatteryStatus">, fields: Pick<ControlsFieldsFeature, "colorField" | "condField" | "createRangeSlider" | "fieldLabel" | "makeCollapsibleCard" | "segmentControl" | "selectField" | "textInput" | "toggleRow">, helpers: Pick<SettingsPageHelpersFeature, "appendSettingsSection" | "createScreensaverThenControls" | "createTimeInput" | "statusBadge" | "syncClockScreensaverControls" | "syncCoverArtScreensaverUi" | "syncMediaPlayerSleepPreventionUi">, scheduleSection: SettingsScheduleSectionFeature, coverArtSection: SettingsCoverArtSectionFeature, systemSection: SettingsSystemSectionFeature, preview: Pick<PreviewRenderFeature, "render">): SettingsPageFeature {
+export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindTextPost">, runtime: UiRuntimeState, core: Pick<CoreFeature, "syncPreviewOrientation">, layout: ApplicationLayoutState, environment: EnvironmentStateFeature, schedule: ScreenScheduleStateFeature, screensaverTimeout: ScreensaverTimeoutFeature, screenRotation: ScreenRotationFeature, appearance: AppearanceFeature, clockBar: ClockBarFeature, entityState: Pick<EntityStateFeature, "entityName" | "entityInput">, shell: Pick<ControlsShellFeature, "createActionButton" | "buildApplyBar">, requestApi: Pick<ApplicationApiFeature, "postText" | "postSelect" | "postScreensaverMode" | "postScreensaverTimeout" | "postCameraMotionSensitivity" | "postHomeScreenTimeout" | "postNumber" | "postSwitch">, statusPreview: Pick<AppStatusPreviewFeature, "appendTimezoneOption" | "syncInput" | "updateClock" | "updateSunInfo" | "updateTempPreview">, artworkPostApi: Pick<ArtworkPostApiFeature, "postPresenceSensorEntity" | "postClockOverlay" | "postMetadataOverlay">, schedulePostApi: Pick<ScreenSchedulePostApiFeature, "postBrightnessMode" | "postDisplayBacklightBrightness" | "postBrightnessDawnTime" | "postBrightnessDuskTime">, clockBarPostApi: Pick<ClockBarPostApiFeature, "postClockBar" | "postClockBarNightMode" | "postBatteryStatus">, fields: Pick<ControlsFieldsFeature, "colorField" | "condField" | "createRangeSlider" | "fieldLabel" | "makeCollapsibleCard" | "segmentControl" | "selectField" | "textInput" | "toggleRow">, helpers: Pick<SettingsPageHelpersFeature, "appendSettingsSection" | "createScreensaverThenControls" | "createTimeInput" | "statusBadge" | "syncClockScreensaverControls" | "syncCoverArtScreensaverUi" | "syncMediaPlayerSleepPreventionUi">, scheduleSection: SettingsScheduleSectionFeature, coverArtSection: SettingsCoverArtSectionFeature, systemSection: SettingsSystemSectionFeature, preview: Pick<PreviewRenderFeature, "render">): SettingsPageFeature {
     const { render: renderPreview } = preview;
     const { appendSettingsSection, createScreensaverThenControls, createTimeInput, statusBadge, syncClockScreensaverControls, syncCoverArtScreensaverUi, syncMediaPlayerSleepPreventionUi } = helpers;
     const { buildScreenScheduleSettingsCard } = scheduleSection;
@@ -530,6 +531,50 @@ export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindT
         els.setSsMode = setSsMode;
         setSsMode(ssMode);
         var screensaverCard: any = makeCollapsibleCard("Screensaver", ssBody, true, ssBadge);
+        if (cameraMotionSupported) {
+            const sensingBody = document.createElement("div");
+            const occupancyStatus = document.createElement("div");
+            const lightStatus = document.createElement("div");
+            occupancyStatus.textContent = "Waiting for occupancy state";
+            lightStatus.textContent = "Waiting for light reading";
+            els.cameraOccupancyStatus = occupancyStatus;
+            els.cameraLightStatus = lightStatus;
+            sensingBody.appendChild(fieldLabel("Occupancy"));
+            sensingBody.appendChild(occupancyStatus);
+            sensingBody.appendChild(fieldLabel("Relative Room Light (not lux)"));
+            sensingBody.appendChild(lightStatus);
+            for (const control of CAMERA_CONTROLS) {
+                let input: HTMLInputElement;
+                if (control.domain === "switch") {
+                    const toggle = toggleRow(control.label, "sp-" + control.key, state.cameraControls[control.key] === true);
+                    input = toggle.input;
+                    sensingBody.appendChild(toggle.row);
+                } else {
+                    sensingBody.appendChild(fieldLabel(control.label));
+                    input = document.createElement("input");
+                    input.type = "number";
+                    input.min = String(control.min);
+                    input.max = String(control.max);
+                    input.step = String(control.step);
+                    input.value = String(state.cameraControls[control.key]);
+                    input.className = "sp-input";
+                    input.setAttribute("aria-label", control.label);
+                    sensingBody.appendChild(input);
+                }
+                els[control.key] = input;
+                input.addEventListener("change", () => {
+                    const value = normalizeCameraControl(control, control.domain === "switch" ? input.checked : input.value);
+                    state.cameraControls[control.key] = value;
+                    if (control.domain === "switch") requestApi.postSwitch(control.name, value === true);
+                    else requestApi.postNumber(control.name, value);
+                });
+            }
+            const hint = document.createElement("div");
+            hint.className = "sp-field-hint";
+            hint.textContent = "Occupancy stays on until the timeout after the last movement. Wake keeps the screen on while occupied in Timer or Camera Motion mode; schedule and manual-off retain priority. Detection continues with wake off. Light dimming runs locally: record the relative light reading in dark and bright room conditions, enter those levels, then enable dimming. Bright level must exceed dark level, and minimum brightness must not exceed maximum. Invalid or unavailable readings use your existing brightness settings. Clock and sleeping-screen brightness retain their own settings.";
+            sensingBody.appendChild(hint);
+            els.cameraSensingCard = makeCollapsibleCard("Camera Occupancy & Light", sensingBody, true);
+        }
         var idleBody: any = document.createElement("div");
         idleBody.appendChild(fieldLabel("Return Home After"));
         var hsSelect: any = document.createElement("select");
@@ -574,6 +619,7 @@ export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindT
         appendSettingsSection(config, "Sleep & Schedule", [
             coverArtCard,
             screensaverCard,
+            ...(cameraMotionSupported && els.cameraSensingCard ? [els.cameraSensingCard] : []),
             scheduleCard,
         ]);
         appendSettingsSection(config, "Preferences", [

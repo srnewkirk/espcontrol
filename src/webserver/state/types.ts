@@ -170,6 +170,7 @@ export interface AppState {
   screensaverMode: string;
   _screensaverModeReceived: boolean;
   cameraMotionSensitivity: number;
+  cameraControls: Record<string, number | boolean>;
   screensaverAction: string;
   _screensaverActionReceived: boolean;
   clockScreensaverOn: boolean;

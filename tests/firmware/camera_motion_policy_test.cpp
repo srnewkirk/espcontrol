@@ -113,6 +113,30 @@ void test_auto_exposure() {
 }  // namespace
 
 int main() {
+  OccupancyTimer occupancy;
+  check(!occupancy.occupied(0, 1000), "boot must not claim occupancy");
+  occupancy.record_motion(100);
+  check(occupancy.occupied(1099, 1000), "occupancy lasts until the timeout");
+  check(!occupancy.occupied(1100, 1000), "occupancy expires at the timeout");
+  check(!occupancy.occupied(100, 1000), "expired occupancy cannot reappear after a full clock rollover");
+  occupancy.record_motion(900);
+  check(occupancy.occupied(1800, 1000), "new motion extends occupancy");
+  check(!occupancy.occupied(1800, 500), "changing timeout uses the last motion time");
+  occupancy.record_motion(UINT32_MAX - 100);
+  check(occupancy.occupied(100, 1000), "occupancy handles clock rollover");
+  check(!occupancy.occupied(1000, 1000), "occupancy expires across clock rollover");
+  check(std::fabs(relative_light(80, 1000, 16) - relative_light(144, 2000, 16)) < 0.001f,
+        "equivalent exposure changes preserve relative light");
+  check(std::fabs(relative_light(80, 1000, 16) - relative_light(144, 1000, 32)) < 0.001f,
+        "equivalent gain changes preserve relative light");
+  check(relative_light(10, 1000, 16) == 0, "black-level correction never produces negative light");
+  check(std::isnan(relative_light(80, 0, 16)), "invalid exposure cannot drive dimming");
+  check(dimming_brightness(0, 1, 11, 10, 90) == 10, "dark scenes use minimum brightness");
+  check(dimming_brightness(50, 1, 11, 10, 90) == 90, "bright scenes use maximum brightness");
+  check(dimming_brightness(6, 1, 11, 10, 90) == 50, "brightness interpolates between calibration points");
+  check(std::isnan(dimming_brightness(6, 11, 1, 10, 90)), "reversed light calibration falls back safely");
+  check(std::isnan(dimming_brightness(NAN, 1, 11, 10, 90)), "unavailable light falls back safely");
+  check(std::isnan(dimming_brightness(6, 1, 11, 90, 10)), "reversed brightness bounds fall back safely");
   test_sensitivity_mapping();
   test_change_counting();
   test_auto_exposure();

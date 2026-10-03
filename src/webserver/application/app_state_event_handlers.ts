@@ -1,3 +1,4 @@
+import { cameraControlHandlers } from "./camera_controls";
 import { state } from "../state/app_instance";
 import { FALLBACK_TIMEZONE_OPTION, NTP_SERVER_DEFAULTS } from "../state/app_state";
 import { applyClockBarStateValue } from "../state/event_state";
@@ -118,6 +119,7 @@ export function createAppStateEventHandlersFeature(
     // ── State Event Handlers ──────────────────────────────────────────
     const createSseHandlers: SseHandlerFactory = () => {
         return {
+            ...cameraControlHandlers(runtime),
             "text-button_order": function (this: any, val?: any) {
                 if (gridPreviewBlockedByRotationStartup() || state.screenRotationInitialFallbackActive) {
                     runtime.orderReceived = !!(val && val.trim());

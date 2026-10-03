@@ -6,6 +6,9 @@
 # sun entity dependency — works fully standalone.
 # =============================================================================
 
+substitutions:
+  camera_auto_brightness_expression: "NAN"
+
 globals:
   - id: last_is_daytime
     type: bool
@@ -851,7 +854,10 @@ script:
           } else {
             std::string mode = normalize_brightness_mode(
                 id(brightness_mode).current_option());
-            if (brightness_mode_manual(mode)) {
+            const float camera_pct = ${camera_auto_brightness_expression};
+            if (std::isfinite(camera_pct)) {
+              pct = camera_pct;
+            } else if (brightness_mode_manual(mode)) {
               pct = id(manual_brightness_pct);
               if (std::isnan(pct) || pct <= 0.0f) pct = 100.0f;
               if (pct < 1.0f) pct = 1.0f;

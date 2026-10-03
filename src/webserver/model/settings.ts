@@ -1,3 +1,4 @@
+import { normalizeCameraControls } from "./camera_controls";
 export function normalizeTemperatureUnit(value: unknown): string {
   const unit = String(value == null ? "" : value).trim().toLowerCase();
   if (unit === "f" || unit === "\u00B0f" || unit === "fahrenheit") return "\u00B0F";
@@ -374,6 +375,7 @@ export interface BackupPanelSettingsState {
   ntpServer3: string;
   screensaverMode: string;
   cameraMotionSensitivity: number;
+  cameraControls: Record<string, number | boolean>;
   presenceSensorEntity: string;
   screensaverCameraEntity: string;
   screensaverMetadataEntity: string;
@@ -545,6 +547,7 @@ export function normalizeBackupPanelSettings(
       : current.ntpServer3,
     screensaverMode: normalizeScreensaverMode(settings.screensaver_mode),
     cameraMotionSensitivity: normalizeCameraMotionSensitivity(settings.camera_motion_sensitivity),
+    cameraControls: normalizeCameraControls(settings),
     presenceSensorEntity: String(settings.presence_sensor_entity || ""),
     screensaverCameraEntity: String(settings.screensaver_camera_entity || ""),
     screensaverMetadataEntity: String(settings.screensaver_metadata_entity || ""),

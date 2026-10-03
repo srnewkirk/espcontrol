@@ -18,5 +18,13 @@ capability only through the private profile generator, and add sensitivity to
 settings backups. Newer schedule-boundary behavior treats Camera Motion like
 Timer mode. Test fixtures were adapted to the current backup contract.
 
+The fork subsequently adds a motion-refreshed occupancy timer and an experimental
+exposure/gain-compensated relative scene-light estimate. These extensions are not
+claimed as contributor-validated features. The opt-in profile keeps capture
+running to support occupancy independently of screen wake. Local brightness
+interpolation is disabled by default pending room calibration; common display
+policies use stock no-op defaults and opt-in expressions for sleep prevention
+and active-screen brightness. Web/HA controls share persisted ESPHome entities.
+
 This component is separate from the earlier `jc4880_camera_capture` experiment;
 the two must never be loaded together because both own the CSI/ISP pipeline.

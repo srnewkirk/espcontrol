@@ -20,6 +20,34 @@ constexpr float AE_TARGET = 70.0f;
 constexpr float AE_LOW = 48.0f;
 constexpr float AE_HIGH = 96.0f;
 
+// Occupancy expires from the last actual motion frame, not the short motion
+// sensor pulse. Unsigned subtraction keeps the timeout correct across rollover.
+class OccupancyTimer {
+ public:
+  void record_motion(uint32_t now) { last_motion_ms_ = now; have_motion_ = true; }
+  bool occupied(uint32_t now, uint32_t timeout_ms) {
+    if (have_motion_ && static_cast<uint32_t>(now - last_motion_ms_) >= timeout_ms) have_motion_ = false;
+    return have_motion_;
+  }
+ private:
+  uint32_t last_motion_ms_{0};
+  bool have_motion_{false};
+};
+
+// Relative scene light, not lux. Remove the preview black offset and divide
+// by exposure and analogue gain; a fixed 1000-line reference keeps readable units.
+inline float relative_light(float mean, uint32_t exposure_lines, uint32_t gain_x16) {
+  if (!std::isfinite(mean) || exposure_lines == 0 || gain_x16 == 0) return NAN;
+  return std::max(0.0f, mean - 16.0f) * 16000.0f / (static_cast<float>(exposure_lines) * gain_x16);
+}
+
+inline float dimming_brightness(float light, float dark, float bright, float minimum, float maximum) {
+  if (!std::isfinite(light) || !std::isfinite(dark) || !std::isfinite(bright) || bright <= dark ||
+      !std::isfinite(minimum) || !std::isfinite(maximum) || minimum > maximum) return NAN;
+  const float fraction = std::clamp((light - dark) / (bright - dark), 0.0f, 1.0f);
+  return std::clamp(minimum + fraction * (maximum - minimum), 1.0f, 100.0f);
+}
+
 // Share of the grid that must change to count as motion: about a quarter of
 // the picture at sensitivity 1, 3.5% at 50, and 0.5% at 100.
 inline uint16_t min_changed_cells(float sensitivity, int cells) {

@@ -14,6 +14,9 @@
 # Touch wake is handled by the touchscreen on_touch in device.yaml.
 # =============================================================================
 
+substitutions:
+  camera_occupancy_prevents_sleep: "false"
+
 button:
   - platform: template
     id: screen_wake
@@ -784,6 +787,7 @@ script:
                   lambda: |-
                     return id(espcontrol_app).display().target_mode_is(
                                espcontrol::DisplayMode::COVER_ART) ||
+                           (${camera_occupancy_prevents_sleep}) ||
                            alarm_display_takeover_active() ||
                            (id(cover_art_screensaver_enabled).state &&
                             id(media_player_sleep_prevention_enabled).state &&

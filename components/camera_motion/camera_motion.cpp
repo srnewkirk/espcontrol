@@ -209,6 +209,8 @@ bool CameraMotionComponent::probe_sensor_() {
 
 void CameraMotionComponent::loop() {
   const uint32_t now = millis();
+  if (this->occupancy_binary_sensor_ != nullptr)
+    this->occupancy_binary_sensor_->publish_state(this->occupancy_timer_.occupied(now, this->occupancy_timeout_ms_));
   const bool want_run = this->wake_armed_ || this->test_mode_ || this->preview_active_(now);
 
   switch (this->state_) {
@@ -529,6 +531,8 @@ void CameraMotionComponent::begin_stop_() {
 }
 
 void CameraMotionComponent::clear_outputs_() {
+  this->relative_light_ = NAN;
+  if (this->relative_light_sensor_ != nullptr) this->relative_light_sensor_->publish_state(NAN);
   if (this->motion_active_) {
     this->motion_active_ = false;
     if (this->motion_binary_sensor_ != nullptr)
@@ -608,6 +612,17 @@ void CameraMotionComponent::process_frame_() {
   }
 
   const bool warming_up = now - this->running_since_ms_ < WARMUP_MS;
+  if (!warming_up && this->skip_compare_frames_ == 0) {
+    const float light = relative_light(mean, this->exposure_lines_, this->gain_x16_);
+    if (std::isfinite(light)) {
+      // Five-second smoothing, independent of the selected camera frame rate.
+      const float weight = std::isnan(this->relative_light_) ? 1.0f :
+          std::clamp(static_cast<float>(now - this->last_light_ms_) / 5000.0f, 0.0f, 1.0f);
+      this->relative_light_ = std::isnan(this->relative_light_) ? light :
+          this->relative_light_ + weight * (light - this->relative_light_);
+      this->last_light_ms_ = now;
+    }
+  }
   this->changed_cells_.reset();
   this->last_level_ = 0.0f;
   if (this->have_prev_ && this->skip_compare_frames_ == 0 && !warming_up) {
@@ -630,6 +645,7 @@ void CameraMotionComponent::process_frame_() {
           this->motion_binary_sensor_->publish_state(true);
       }
       this->last_motion_ms_ = now;
+      this->occupancy_timer_.record_motion(now);
       if (now - this->last_callback_ms_ >= CALLBACK_MIN_INTERVAL_MS) {
         this->last_callback_ms_ = now;
         this->motion_callback_.call();
@@ -687,6 +703,8 @@ void CameraMotionComponent::publish_periodic_(uint32_t now) {
     this->window_max_level_ = 0.0f;
     if (this->brightness_sensor_ != nullptr && !std::isnan(this->last_mean_))
       this->brightness_sensor_->publish_state(this->last_mean_ * 100.0f / 255.0f);
+    if (this->relative_light_sensor_ != nullptr)
+      this->relative_light_sensor_->publish_state(now - this->last_light_ms_ <= 10000 ? this->relative_light_ : NAN);
 
     std::string status;
     if (this->processed_frames_ == 0 || now - this->running_since_ms_ < WARMUP_MS) {

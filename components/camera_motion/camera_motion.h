@@ -60,8 +60,17 @@ class CameraMotionComponent : public Component, public i2c::I2CDevice {
   void set_line_sync(bool line_sync) { this->line_sync_ = line_sync; }
   void set_frame_rate_divider(uint8_t divider) { this->frame_rate_divider_ = divider; }
   void set_motion_binary_sensor(binary_sensor::BinarySensor *sensor) { this->motion_binary_sensor_ = sensor; }
+  void set_occupancy_binary_sensor(binary_sensor::BinarySensor *sensor) { this->occupancy_binary_sensor_ = sensor; }
+  void set_occupancy_timeout(float seconds) {
+    if (std::isfinite(seconds)) this->occupancy_timeout_ms_ = static_cast<uint32_t>(std::clamp(seconds, 1.0f, 3600.0f) * 1000);
+  }
   void set_motion_level_sensor(sensor::Sensor *sensor) { this->motion_level_sensor_ = sensor; }
   void set_brightness_sensor(sensor::Sensor *sensor) { this->brightness_sensor_ = sensor; }
+  void set_relative_light_sensor(sensor::Sensor *sensor) { this->relative_light_sensor_ = sensor; }
+  float auto_brightness(float dark, float bright, float minimum, float maximum) const {
+    if (this->state_ != State::RUNNING || millis() - this->last_light_ms_ > 10000) return NAN;
+    return dimming_brightness(this->relative_light_, dark, bright, minimum, maximum);
+  }
   void set_status_text_sensor(text_sensor::TextSensor *sensor) { this->status_text_sensor_ = sensor; }
 
   template<typename F> void add_on_motion_callback(F &&callback) {
@@ -134,8 +143,14 @@ class CameraMotionComponent : public Component, public i2c::I2CDevice {
   uint8_t frame_rate_divider_{4};
 
   binary_sensor::BinarySensor *motion_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *occupancy_binary_sensor_{nullptr};
+  OccupancyTimer occupancy_timer_;
+  uint32_t occupancy_timeout_ms_{120000};
   sensor::Sensor *motion_level_sensor_{nullptr};
   sensor::Sensor *brightness_sensor_{nullptr};
+  sensor::Sensor *relative_light_sensor_{nullptr};
+  float relative_light_{NAN};
+  uint32_t last_light_ms_{0};
   text_sensor::TextSensor *status_text_sensor_{nullptr};
   CallbackManager<void()> motion_callback_{};
 

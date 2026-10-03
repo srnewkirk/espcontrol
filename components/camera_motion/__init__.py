@@ -11,6 +11,7 @@ from esphome.const import (
     CONF_ID,
     CONF_STATUS,
     DEVICE_CLASS_MOTION,
+    DEVICE_CLASS_OCCUPANCY,
     ENTITY_CATEGORY_DIAGNOSTIC,
     STATE_CLASS_MEASUREMENT,
     UNIT_PERCENT,
@@ -24,6 +25,8 @@ CONF_SENSOR_MODE = "sensor_mode"
 CONF_LINE_SYNC = "line_sync"
 CONF_FRAME_RATE_DIVIDER = "frame_rate_divider"
 CONF_MOTION = "motion"
+CONF_OCCUPANCY = "occupancy"
+CONF_RELATIVE_LIGHT = "relative_light"
 CONF_MOTION_LEVEL = "motion_level"
 CONF_ON_MOTION = "on_motion"
 
@@ -51,6 +54,9 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_MOTION): binary_sensor.binary_sensor_schema(
                 device_class=DEVICE_CLASS_MOTION,
             ),
+            cv.Optional(CONF_OCCUPANCY): binary_sensor.binary_sensor_schema(
+                device_class=DEVICE_CLASS_OCCUPANCY,
+            ),
             cv.Optional(CONF_MOTION_LEVEL): sensor.sensor_schema(
                 unit_of_measurement=UNIT_PERCENT,
                 icon="mdi:motion-sensor",
@@ -68,6 +74,11 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_STATUS): text_sensor.text_sensor_schema(
                 icon="mdi:cctv",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_RELATIVE_LIGHT): sensor.sensor_schema(
+                icon="mdi:brightness-6",
+                accuracy_decimals=4,
+                state_class=STATE_CLASS_MEASUREMENT,
             ),
             cv.Optional(CONF_ON_MOTION): automation.validate_automation({}),
         }
@@ -97,10 +108,14 @@ async def to_code(config: dict) -> None:
 
     if motion_config := config.get(CONF_MOTION):
         cg.add(var.set_motion_binary_sensor(await binary_sensor.new_binary_sensor(motion_config)))
+    if occupancy_config := config.get(CONF_OCCUPANCY):
+        cg.add(var.set_occupancy_binary_sensor(await binary_sensor.new_binary_sensor(occupancy_config)))
     if level_config := config.get(CONF_MOTION_LEVEL):
         cg.add(var.set_motion_level_sensor(await sensor.new_sensor(level_config)))
     if brightness_config := config.get(CONF_BRIGHTNESS):
         cg.add(var.set_brightness_sensor(await sensor.new_sensor(brightness_config)))
+    if light_config := config.get(CONF_RELATIVE_LIGHT):
+        cg.add(var.set_relative_light_sensor(await sensor.new_sensor(light_config)))
     if status_config := config.get(CONF_STATUS):
         cg.add(var.set_status_text_sensor(await text_sensor.new_text_sensor(status_config)))
 

@@ -7,9 +7,14 @@ The opt-in profile is
 one-lane mode and shares the panel's touch bus and display supply. Prepare the
 private eight-slot editor with `scripts/prepare_jc4880_camera_profile.py` in a
 disposable source snapshot; stock profiles do not expose camera motion.
+The current JC4880 profile continuously captures for occupancy even when screen
+wake is disabled. Occupancy timeout, wake, and local light-dimming controls are
+shared between web settings and HA. Dimming defaults off and uses experimental
+relative light, not lux; calibrate dark/bright scene levels before enabling it.
 See `PROVENANCE.md` and the JC4880 experiment document for source revisions,
 local modifications, physical results and remaining tests. The original
-contributor's description follows; its V2 package path is not installed here.
+contributor's historical description follows; its V2 package path is not
+installed here and its wake-only lifecycle does not describe this profile.
 
 Trial component: wakes the screensaver when the front camera on the 7-inch
 Guition JC1060P470 (OmniVision OV02C10) sees movement. It is included only in

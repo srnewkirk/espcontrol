@@ -15,7 +15,78 @@ Stage 2 was subsequently approved; its opt-in capture configuration and
 physical test results are recorded below. Motion and ambient-light algorithms
 were unimplemented at that point; the current community deployment follows.
 
-## Community component deployment (2 October 2026)
+## Occupancy and local light dimming extension (2 October 2026)
+
+The user requested an occupancy binary sensor, a configurable timeout, and a
+screen-wake switch, then chose local dimming with shared web/HA controls.
+These are local extensions to the community component, not functionality
+claimed to have been validated by PR #2034's contributor.
+
+**Settings > Camera Occupancy & Light** exposes the same persisted entities as
+Home Assistant. `Camera: Occupancy` becomes occupied on detected motion and
+clears after the last motion plus `Camera: Occupancy Timeout` (default 120 s,
+range 1–3,600 s). Each actual motion frame refreshes the timeout independently
+of the short Motion sensor pulse. Occupancy starts clear after reboot.
+
+`Camera: Wake Screen On Occupancy` defaults on. In Timer or Camera Motion mode,
+it wakes an automatic screensaver and postpones the idle timer while occupied.
+When occupancy clears, the normal screensaver timeout starts. Turning the switch
+off leaves occupancy detection available to HA and restores normal idle behavior.
+Scheduled sleep, manual screen-off, and other screensaver modes retain priority.
+Unlike the earlier wake-only build, this profile continuously captures while
+operating so occupancy remains useful when the screen is on; closing preview
+or turning Test Mode off no longer stops capture. Its resource/thermal cost needs
+a new stability test.
+
+`Camera Light: Relative Level` is an experimental scene-light estimate, not lux.
+It subtracts the preview's assumed RAW8 black offset (16), divides by exposure
+lines and analogue gain, and scales to a fixed 1,000-line reference. Samples
+during warm-up and the two-frame exposure-change settling period are excluded,
+with approximately five-second smoothing. The assumed black offset, sensor
+linearity, saturation, scene dependence and lighting response have not been
+calibrated on this panel. Exposure and gain affect image brightness; see the
+[camera manufacturer's exposure guidance](https://docs.baslerweb.com/exposure-auto)
+for that general principle, not validation of this OV02C10 estimate.
+
+`Camera Light: Automatic Dimming` defaults **off**. Calibration controls are
+Dark Level, Bright Level, Minimum Brightness and Maximum Brightness. To test:
+
+1. Leave dimming off and wait for the relative reading to settle in a dark room.
+   Record that value as Dark Level.
+2. Repeat in the desired bright-room condition and set Bright Level above Dark
+   Level. Keep the panel facing the same scene.
+3. Choose minimum/maximum screen brightness (defaults 10%/100%), then enable
+   automatic dimming. Confirm lighting changes produce the intended result.
+
+The panel interpolates locally between those calibration points every five
+seconds. HA can change all settings without owning the automation. This replaces
+normal active-screen brightness while enabled, leaving clock/dimmed screensaver,
+scheduled night brightness, manual night wake, onboarding and screen-off behavior
+with their existing policies. Invalid calibration, unavailable camera data or
+light readings older than ten seconds fall back to existing brightness settings.
+Disabling dimming reapplies those settings. Set Bright Level greater than Dark
+Level and minimum brightness no greater than maximum. Controls are included in
+settings export/restore; older backups default automatic dimming off.
+
+Firmware policy tests cover timeout extension/expiry/rollover, exposure/gain
+compensation, brightness limits and invalid-input fallback. Room-light response,
+false occupancy triggers, physical wake/hold behavior and calibration remain
+physical tests, not consequences of a compile pass.
+
+Deployment checks: the final build compiled and uploaded with hash verification,
+the updated HA configuration validated, and HA discovered all nine new entities.
+The web interface displayed a timeout changed to 90 s through HA; its web API
+restored 120 s and HA confirmed that value. With temporary equal 25% brightness
+bounds, local dimming changed the reported backlight from 255 to 64 on its 0–255
+scale, then disabling it restored 255. Bounds were restored to 10%/100% and dimming
+was left off. This checks the control path, not ambient-light calibration.
+The measured relative light was approximately 0.0034 in the then-current scene,
+near the assumed dark-image floor; four-decimal display/calibration precision
+avoids rounding that reading to zero. Native card bytes matched the new backup.
+TypeScript, all 152 Linux web tests and all 74 native firmware tests passed;
+the schedule fixture now resolves the stock no-op extension defaults.
+
+## Community component deployment (2 October 2026, prior to extension)
 
 The user approved the documented next steps after the research checkpoint.
 The current experiment now uses `components/camera_motion`, adapted from the
