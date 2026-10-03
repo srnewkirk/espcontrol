@@ -1,3 +1,5 @@
+# Historical fixed-exposure diagnostic profile; use camera-motion.yaml for
+# the current occupancy and local dimming experiment. Never load both together.
 # Private-fork Stage 2 experiment, using the existing stock factory package.
 # Compile in the pinned Docker image with the repository at /config.
 packages:
@@ -24,6 +26,37 @@ external_components:
 jc4880_camera_capture:
   id: onboard_capture
   i2c_id: bus_a
+  preview_button:
+    name: "Camera: Capture Preview"
+    entity_category: diagnostic
+
+# Temporary manual measurement controls. They reset to table defaults on boot;
+# changing exposure also changes the relationship between pixels and room light.
+number:
+  - platform: template
+    id: camera_exposure_lines
+    name: "Camera: Exposure Lines"
+    entity_category: config
+    min_value: 4
+    max_value: 4624
+    step: 1
+    mode: box
+    update_interval: 1s
+    lambda: return id(onboard_capture).exposure_lines();
+    set_action:
+      - lambda: id(onboard_capture).set_exposure(static_cast<uint16_t>(x), id(onboard_capture).gain_x16());
+  - platform: template
+    id: camera_gain
+    name: "Camera: Gain"
+    entity_category: config
+    min_value: 1
+    max_value: 62
+    step: 0.0625
+    mode: box
+    update_interval: 1s
+    lambda: return id(onboard_capture).gain_x16() / 16.0f;
+    set_action:
+      - lambda: id(onboard_capture).set_exposure(id(onboard_capture).exposure_lines(), static_cast<uint16_t>(x * 16));
 
 # Keep both firmware versions unchanged during this controlled comparison.
 switch:

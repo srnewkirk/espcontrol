@@ -210,6 +210,11 @@ When the user authorizes implementation again:
 
 ### Deployment and recovery state at the checkpoint
 
+The preview decoder and manual-exposure source described below were subsequently
+committed as historical diagnostic tools. The decoder's four tests passed again.
+The manual-exposure controls remain unverified on hardware; the deployed
+occupancy/dimming profile uses `camera-motion.yaml` instead.
+
 - Interface changes were committed and pushed as `4ef1a5929`. The panel runs the
   native eight-slot interface; rotation is controlled by the user's settings.
 - The diagnostic snapshot build was compiled and flashed to COM13 at application

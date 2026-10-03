@@ -8,6 +8,7 @@
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
 #include <algorithm>
+#include <cstring>
 
 namespace esphome::jc4880_camera_capture {
 static const char *const TAG = "onboard_capture";
@@ -67,6 +68,8 @@ void Capture::start_() {
   if (err != ESP_OK) return fail_("OV02C10 probe", err);
   err = sensor_.loadDefaultMode(true);
   if (err != ESP_OK) return fail_("Sensor mode", err);
+  err = sensor_.setExposure(exposure_lines_, gain_x16_);
+  if (err != ESP_OK) return fail_("Fixed exposure", err);
 
   // LDO3 is already held at 2.5 V by the unchanged display package.
   esp_cam_ctlr_csi_config_t csi = {};
@@ -153,6 +156,16 @@ void Capture::process_(int index) {
     }
   }
   checksum_ = hash;
+  if (preview_requested_) {
+    preview_requested_ = false;
+    std::memcpy(preview_, grid_, sizeof(grid_));
+    preview_offset_ = 0;
+    preview_id_ = millis();
+    preview_last_emit_ = millis();
+    ESP_LOGI(TAG, "Preview begin id=%u width=160 height=90 bytes=%u checksum=%08x exposure_lines=%u gain_x16=%u",
+        (unsigned) preview_id_, (unsigned) sizeof(grid_), (unsigned) checksum_,
+        (unsigned) exposure_lines_, (unsigned) gain_x16_);
+  }
   sampled_++;
   uint32_t elapsed = esp_timer_get_time() - start;
   process_us_ += elapsed;
@@ -162,6 +175,68 @@ void Capture::process_(int index) {
   portENTER_CRITICAL(&lock_);
   frozen_ = -1;
   portEXIT_CRITICAL(&lock_);
+}
+
+void Capture::request_preview() {
+  if (!started_ || is_failed()) {
+    ESP_LOGW(TAG, "Preview unavailable: camera not running");
+    return;
+  }
+  if (preview_ != nullptr) {
+    ESP_LOGW(TAG, "Preview already pending; wait for completion");
+    return;
+  }
+  preview_ = static_cast<uint8_t *>(heap_caps_malloc(sizeof(grid_), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (!preview_) {
+    ESP_LOGW(TAG, "Preview unavailable: snapshot allocation failed");
+    return;
+  }
+  preview_requested_ = true;
+}
+
+bool Capture::set_exposure(uint16_t lines, uint16_t gain_x16) {
+  lines = std::clamp(lines, ov02c10::kMinExposureLines, ov02c10::kMaxExposureLines);
+  gain_x16 = std::clamp(gain_x16, ov02c10::kMinGainX16, ov02c10::kMaxTotalGainX16);
+  if (started_) {
+    if (preview_) {
+      ESP_LOGW(TAG, "Wait for preview completion before changing exposure");
+      return false;
+    }
+    esp_err_t err = sensor_.setExposure(lines, gain_x16);
+    if (err != ESP_OK) {
+      ESP_LOGW(TAG, "Exposure change failed: %s", esp_err_to_name(err));
+      return false;
+    }
+  }
+  exposure_lines_ = lines;
+  gain_x16_ = gain_x16;
+  ESP_LOGI(TAG, "Fixed exposure requested: lines=%u gain_x16=%u", (unsigned) lines, (unsigned) gain_x16);
+  return true;
+}
+
+void Capture::emit_preview_() {
+  if (!preview_ || preview_requested_ || millis() - preview_last_emit_ < 20) return;
+  // Keep each log line below the logger buffer; emit one chunk per loop.
+  // The camera continues using its existing buffers while this copy is read.
+  constexpr size_t CHUNK = 128;
+  constexpr char HEX[] = "0123456789abcdef";
+  char encoded[CHUNK * 2 + 1];
+  size_t count = std::min(CHUNK, sizeof(grid_) - preview_offset_);
+  for (size_t i = 0; i < count; ++i) {
+    uint8_t value = preview_[preview_offset_ + i];
+    encoded[i * 2] = HEX[value >> 4];
+    encoded[i * 2 + 1] = HEX[value & 15];
+  }
+  encoded[count * 2] = '\0';
+  ESP_LOGI(TAG, "Preview chunk id=%u offset=%u data=%s", (unsigned) preview_id_,
+      (unsigned) preview_offset_, encoded);
+  preview_offset_ += count;
+  preview_last_emit_ = millis();
+  if (preview_offset_ == sizeof(grid_)) {
+    ESP_LOGI(TAG, "Preview end id=%u", (unsigned) preview_id_);
+    heap_caps_free(preview_);
+    preview_ = nullptr;
+  }
 }
 
 void Capture::loop() {
@@ -185,6 +260,7 @@ void Capture::loop() {
     portEXIT_CRITICAL(&lock_);
     last_arm_ = now;
   }
+  emit_preview_();
   if (now - last_report_ >= 10000) {
     uint32_t received, incomplete;
     portENTER_CRITICAL(&lock_);
@@ -204,6 +280,9 @@ void Capture::loop() {
 
 void Capture::cleanup_() {
   cancel_timeout("camera_start");
+  heap_caps_free(preview_);
+  preview_ = nullptr;
+  preview_requested_ = false;
   if (sensor_.attached()) sensor_.setStream(false);
   if (started_ && esp_cam_ctlr_stop(csi_) != ESP_OK) {
     // Retain buffers if DMA cannot be stopped; never free live DMA memory.
