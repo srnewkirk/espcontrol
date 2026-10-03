@@ -6,6 +6,7 @@ code. Hardware, rendering and unrelated scripts are doubles. The small script
 runner models restart, delay and wait so both periodic callback orders execute.
 """
 import argparse
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -22,6 +23,12 @@ def generate(root):
     scripts = {}
     for filename in ("backlight.yaml", "backlight_schedule.yaml"):
         text = (root / "common/addon" / filename).read_text()
+        # Resolve stock extension defaults before compiling the production
+        # lambdas; opt-in device expressions are covered by their firmware build.
+        block = re.search(r"(?ms)^substitutions:\n.*?(?=^\S|\Z)", text)
+        if block:
+            for name, value in yaml.load(block.group(), Loader)["substitutions"].items():
+                text = text.replace("${" + name + "}", str(value))
         scripts.update({s["id"]: s for s in yaml.load(text[text.index("script:\n"):], Loader)["script"]})
     selected = {"display_mode_reconcile", "screen_schedule_check", "screen_schedule_wake",
                 "display_mode_apply_transition", "display_mode_effect_active",

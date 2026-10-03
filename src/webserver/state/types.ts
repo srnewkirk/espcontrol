@@ -14,6 +14,7 @@ export interface DeviceConfigFeatures {
   battery?: boolean;
   alarmDelayAudio?: boolean;
   cameraScreensaver?: boolean;
+  cameraMotion?: boolean;
 }
 
 export interface DeviceConfig {
@@ -168,6 +169,8 @@ export interface AppState {
   homeAssistantArtworkEndpointHealth: string;
   screensaverMode: string;
   _screensaverModeReceived: boolean;
+  cameraMotionSensitivity: number;
+  cameraControls: Record<string, number | boolean>;
   screensaverAction: string;
   _screensaverActionReceived: boolean;
   clockScreensaverOn: boolean;

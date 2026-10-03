@@ -1,0 +1,179 @@
+# User-fork experiment: community camera pipeline and opt-in motion wake.
+packages:
+  stock: !include ../../builds/guition-esp32-p4-jc4880p443.factory.yaml
+
+substitutions:
+  cover_art_placeholder_file: "/config/common/assets/cover_art_placeholder.svg"
+  camera_occupancy_prevents_sleep: 'id(camera_wake_on_occupancy).state && id(camera_occupancy).state && (id(screensaver_mode).state == "camera" || id(screensaver_mode).state == "timer")'
+  camera_auto_brightness_expression: 'id(camera_auto_dimming).state ? id(camera_motion_engine).auto_brightness(id(camera_light_dark).state, id(camera_light_bright).state, id(camera_dim_minimum).state, id(camera_dim_maximum).state) : NAN'
+
+esphome:
+  build_path: /config/builds/.esphome/build/espcontrol-jc4880p443
+
+esp32:
+  partitions: /config/common/device/partitions_16mb_card_images.csv
+
+web_server:
+  js_include: /config/docs/public/webserver/embedded/www.js
+
+external_components:
+  - source:
+      type: local
+      path: /config/components
+    components: [camera_motion]
+
+camera_motion:
+  id: camera_motion_engine
+  i2c_id: bus_a
+  sensor_mode: 1288x728_1lane
+  line_sync: true
+  frame_rate_divider: 4
+  motion:
+    name: "Camera Motion: Motion"
+  occupancy:
+    id: camera_occupancy
+    name: "Camera: Occupancy"
+    on_press:
+      - if:
+          condition:
+            lambda: 'return ${camera_occupancy_prevents_sleep};'
+          then:
+            - script.stop: screensaver_idle_check
+            - if:
+                condition:
+                  lambda: 'return espcontrol::presence_can_wake_display(id(espcontrol_app).display().resolve());'
+                then:
+                  - script.execute: screensaver_wake
+    on_release:
+      - script.execute: screensaver_idle_check
+  motion_level:
+    name: "Camera Motion: Level"
+  brightness:
+    name: "Camera Motion: Picture Brightness"
+  relative_light:
+    id: camera_relative_light
+    name: "Camera Light: Relative Level"
+  status:
+    name: "Camera Motion: Status"
+
+switch:
+  - platform: template
+    id: camera_wake_on_occupancy
+    name: "Camera: Wake Screen On Occupancy"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    on_turn_off:
+      - script.execute: screensaver_idle_check
+  - platform: template
+    id: camera_auto_dimming
+    name: "Camera Light: Automatic Dimming"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    on_turn_off:
+      - script.execute: backlight_apply_brightness
+  - platform: template
+    id: camera_motion_test_mode
+    name: "Camera Motion: Test Mode"
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    entity_category: config
+  - id: !extend c6_auto_update_switch
+    restore_mode: ALWAYS_OFF
+  - id: !extend auto_update_switch
+    restore_mode: ALWAYS_OFF
+
+number:
+  - platform: template
+    id: camera_occupancy_timeout
+    name: "Camera: Occupancy Timeout"
+    unit_of_measurement: s
+    optimistic: true
+    restore_value: true
+    initial_value: 120
+    min_value: 1
+    max_value: 3600
+    step: 1
+    entity_category: config
+    on_value:
+      - lambda: 'id(camera_motion_engine).set_occupancy_timeout(x);'
+  - platform: template
+    id: camera_light_dark
+    name: "Camera Light: Dark Level"
+    optimistic: true
+    restore_value: true
+    initial_value: 0.1
+    min_value: 0
+    max_value: 10000
+    step: 0.0001
+    entity_category: config
+  - platform: template
+    id: camera_light_bright
+    name: "Camera Light: Bright Level"
+    optimistic: true
+    restore_value: true
+    initial_value: 10
+    min_value: 0.0001
+    max_value: 10000
+    step: 0.0001
+    entity_category: config
+  - platform: template
+    id: camera_dim_minimum
+    name: "Camera Light: Minimum Brightness"
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 10
+    min_value: 1
+    max_value: 100
+    step: 1
+    entity_category: config
+  - platform: template
+    id: camera_dim_maximum
+    name: "Camera Light: Maximum Brightness"
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 100
+    min_value: 1
+    max_value: 100
+    step: 1
+    entity_category: config
+  - platform: template
+    id: camera_motion_sensitivity
+    name: "Camera Motion: Sensitivity"
+    optimistic: true
+    restore_value: true
+    initial_value: 50
+    min_value: 1
+    max_value: 100
+    step: 1
+    entity_category: config
+
+button:
+  - platform: template
+    name: "Camera Motion: Log Picture"
+    entity_category: diagnostic
+    on_press:
+      - lambda: 'id(camera_motion_engine).request_picture_log();'
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          id(camera_motion_engine).set_sensitivity(id(camera_motion_sensitivity).state);
+          // Occupancy remains available to HA even with screen wake disabled.
+          id(camera_motion_engine).set_run_request(true, id(camera_motion_test_mode).state);
+          if (${camera_occupancy_prevents_sleep}) {
+            id(screensaver_idle_check).stop();
+            if (espcontrol::presence_can_wake_display(id(espcontrol_app).display().resolve()))
+              id(screensaver_wake).execute();
+          }
+  - interval: 5s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(camera_auto_dimming).state;'
+          then:
+            - script.execute: backlight_apply_brightness

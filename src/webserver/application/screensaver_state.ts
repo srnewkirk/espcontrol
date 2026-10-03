@@ -4,5 +4,7 @@ export function getActiveScreensaverMode() {
             return "sensor";
         if (state.screensaverMode === "timer")
             return "timer";
+        if (state.screensaverMode === "camera")
+            return "camera";
         return "disabled";
 }

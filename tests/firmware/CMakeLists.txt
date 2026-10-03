@@ -5,6 +5,12 @@ enable_testing()
 include(CheckCXXSourceCompiles)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(camera_motion_policy_test camera_motion_policy_test.cpp)
+target_compile_features(camera_motion_policy_test PRIVATE cxx_std_17)
+target_compile_options(camera_motion_policy_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(camera_motion_policy_test PRIVATE ../../components/camera_motion)
+add_test(NAME camera_motion_policy_test COMMAND camera_motion_policy_test)
+
 add_executable(foundation_test foundation_test.cpp)
 target_compile_features(foundation_test PRIVATE cxx_std_17)
 target_compile_options(foundation_test PRIVATE -Wall -Wextra -Werror)
@@ -527,3 +533,9 @@ add_test(NAME home_assistant_endpoint_probe_test COMMAND home_assistant_endpoint
 
 add_test(NAME clock_screensaver_time_test COMMAND
   ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/clock_screensaver_time_test.py)
+
+add_executable(jc4880_capture_grid_test jc4880_capture_grid_test.cpp)
+target_compile_features(jc4880_capture_grid_test PRIVATE cxx_std_17)
+target_compile_options(jc4880_capture_grid_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(jc4880_capture_grid_test PRIVATE ../..)
+add_test(NAME jc4880_capture_grid_test COMMAND jc4880_capture_grid_test)

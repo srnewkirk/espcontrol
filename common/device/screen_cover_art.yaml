@@ -3050,7 +3050,8 @@ script:
                   lambda: |-
                     return id(media_player_sleep_prevention_enabled).state ||
                            (id(screensaver_mode).state != "timer" &&
-                            id(screensaver_mode).state != "sensor") ||
+                            id(screensaver_mode).state != "sensor" &&
+                            id(screensaver_mode).state != "camera") ||
                            !id(espcontrol_app).display().target_mode_is(espcontrol::DisplayMode::ACTIVE);
                 then:
                   - script.execute: cover_art_start_delay

@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "generatedBy": "scripts/check_product_snapshot.py --update",
   "sources": {
-    "deviceProfiles": "devices/manifest.json",
-    "cardContract": "product/v2/card_contract.json",
-    "entityNames": "product/v2/entity_names.json",
-    "icons": "product/v2/icons.json",
-    "compatibilityFixtures": "product/v2/product_compatibility.json"
+    "deviceProfiles": "devices\\manifest.json",
+    "cardContract": "product\\v2\\card_contract.json",
+    "entityNames": "product\\v2\\entity_names.json",
+    "icons": "product\\v2\\icons.json",
+    "compatibilityFixtures": "product\\v2\\product_compatibility.json"
   },
   "summary": {
     "deviceProfiles": 8,
     "cardTypes": 43,
-    "entityNames": 102,
+    "entityNames": 112,
     "icons": 364,
     "structuralIcons": 22,
     "compatibilityFixtureGroups": 2
@@ -7084,6 +7084,117 @@
         ],
         "groups": [
           "settings"
+        ]
+      },
+      {
+        "key": "camera_occupancy_timeout",
+        "domain": "number",
+        "name": "Camera: Occupancy Timeout",
+        "objectIds": [
+          "camera__occupancy_timeout"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_wake_on_occupancy",
+        "domain": "switch",
+        "name": "Camera: Wake Screen On Occupancy",
+        "objectIds": [
+          "camera__wake_screen_on_occupancy"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_auto_dimming",
+        "domain": "switch",
+        "name": "Camera Light: Automatic Dimming",
+        "objectIds": [
+          "camera_light__automatic_dimming"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_light_dark",
+        "domain": "number",
+        "name": "Camera Light: Dark Level",
+        "objectIds": [
+          "camera_light__dark_level"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_light_bright",
+        "domain": "number",
+        "name": "Camera Light: Bright Level",
+        "objectIds": [
+          "camera_light__bright_level"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_dim_minimum",
+        "domain": "number",
+        "name": "Camera Light: Minimum Brightness",
+        "objectIds": [
+          "camera_light__minimum_brightness"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_dim_maximum",
+        "domain": "number",
+        "name": "Camera Light: Maximum Brightness",
+        "objectIds": [
+          "camera_light__maximum_brightness"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_occupancy",
+        "domain": "binary_sensor",
+        "name": "Camera: Occupancy",
+        "objectIds": [
+          "camera__occupancy"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_relative_light",
+        "domain": "sensor",
+        "name": "Camera Light: Relative Level",
+        "objectIds": [
+          "camera_light__relative_level"
+        ],
+        "groups": [
+          "settings_camera"
+        ]
+      },
+      {
+        "key": "camera_motion_sensitivity",
+        "domain": "number",
+        "name": "Camera Motion: Sensitivity",
+        "objectIds": [
+          "camera_motion__sensitivity",
+          "camera_motion_sensitivity"
+        ],
+        "groups": [
+          "settings_camera"
         ]
       },
       {

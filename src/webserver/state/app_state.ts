@@ -1,3 +1,4 @@
+import { normalizeCameraControls } from "../model/camera_controls";
 import type { CardConfig } from "../contracts/types";
 import { WEB_UI_COLORS } from "./ui_tokens";
 import type { AppState, DeviceConfig } from "./types";
@@ -51,7 +52,7 @@ export function createInitialState(deviceConfig: DeviceConfig): AppState {
     coverArtPlaybackControlOn: true, coverArtFilteringEnabled: false, coverArtDelay: 10, coverArtTrackOverlayDuration: 5,
     coverArtHideExternalInputOn: true, homeAssistantArtworkProtocol: "http", homeAssistantArtworkHost: "", coverArtHomeAssistantPort: 8123,
     homeAssistantArtworkEndpointMode: "Automatic", homeAssistantArtworkEndpointStatus: "Discovering", homeAssistantArtworkEndpointHealth: "",
-    screensaverMode: "disabled", _screensaverModeReceived: false, screensaverAction: "off",
+    cameraControls: normalizeCameraControls({}), screensaverMode: "disabled", _screensaverModeReceived: false, cameraMotionSensitivity: 50, screensaverAction: "off",
     _screensaverActionReceived: false, clockScreensaverOn: false, clockBrightnessDay: 35,
     clockBrightnessNight: 35, clockBrightnessSplitReceived: false, screensaverDimmedBrightness: 10,
     screensaverDimmedBrightnessDay: 10, screensaverDimmedBrightnessNight: 10,

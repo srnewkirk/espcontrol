@@ -1,3 +1,4 @@
+import { normalizeCameraControls } from "./camera_controls";
 export function normalizeTemperatureUnit(value: unknown): string {
   const unit = String(value == null ? "" : value).trim().toLowerCase();
   if (unit === "f" || unit === "\u00B0f" || unit === "fahrenheit") return "\u00B0F";
@@ -83,6 +84,14 @@ export function normalizeAlarmDelayBeepVolume(value: unknown): number {
   if (n < 0.05) return 0.05;
   if (n > 1) return 1;
   return Math.round(n * 100) / 100;
+}
+
+export function normalizeCameraMotionSensitivity(value: unknown): number {
+  const n = parseFloat(String(value));
+  if (!Number.isFinite(n)) return 50;
+  if (n < 1) return 1;
+  if (n > 100) return 100;
+  return Math.round(n);
 }
 
 export function normalizeAlarmDelayFinalCountdown(value: unknown): number {
@@ -365,6 +374,8 @@ export interface BackupPanelSettingsState {
   ntpServer2: string;
   ntpServer3: string;
   screensaverMode: string;
+  cameraMotionSensitivity: number;
+  cameraControls: Record<string, number | boolean>;
   presenceSensorEntity: string;
   screensaverCameraEntity: string;
   screensaverMetadataEntity: string;
@@ -399,9 +410,26 @@ export interface BackupPanelSettingsState {
   screenRotation: string;
 }
 
-function normalizeScreensaverMode(value: unknown): string {
+export function normalizeScreensaverMode(value: unknown): string {
   const mode = String(value || "disabled");
-  return mode === "sensor" || mode === "timer" || mode === "disabled" ? mode : "disabled";
+  return mode === "sensor" || mode === "timer" || mode === "camera" || mode === "disabled" ? mode : "disabled";
+}
+
+// Camera mode is only offered on panels with the built-in camera.
+export function screensaverModeOptions(cameraMotionSupported: boolean): [string, string][] {
+  const options: [string, string][] = [
+    ["disabled", "Disabled"],
+    ["timer", "Timer"],
+    ["sensor", "Sensor"],
+  ];
+  if (cameraMotionSupported) options.push(["camera", "Camera Motion"]);
+  return options;
+}
+
+// A Camera backup restored on a panel without a camera keeps its sleep timer.
+export function screensaverModeForDevice(mode: unknown, cameraMotionSupported: boolean): string {
+  const normalized = normalizeScreensaverMode(mode);
+  return normalized === "camera" && !cameraMotionSupported ? "timer" : normalized;
 }
 
 function normalizeScreenRotationValue(value: unknown, options: readonly string[]): string {
@@ -518,6 +546,8 @@ export function normalizeBackupPanelSettings(
       ? normalizeNtpServer(settings.ntp_server_3, current.ntpDefaults[2] || "")
       : current.ntpServer3,
     screensaverMode: normalizeScreensaverMode(settings.screensaver_mode),
+    cameraMotionSensitivity: normalizeCameraMotionSensitivity(settings.camera_motion_sensitivity),
+    cameraControls: normalizeCameraControls(settings),
     presenceSensorEntity: String(settings.presence_sensor_entity || ""),
     screensaverCameraEntity: String(settings.screensaver_camera_entity || ""),
     screensaverMetadataEntity: String(settings.screensaver_metadata_entity || ""),

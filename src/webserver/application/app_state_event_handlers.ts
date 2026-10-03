@@ -1,3 +1,4 @@
+import { cameraControlHandlers } from "./camera_controls";
 import { state } from "../state/app_instance";
 import { FALLBACK_TIMEZONE_OPTION, NTP_SERVER_DEFAULTS } from "../state/app_state";
 import { applyClockBarStateValue } from "../state/event_state";
@@ -8,6 +9,7 @@ import {
     normalizeAlarmDelayBeepVolume,
     normalizeAlarmDelayFinalCountdown,
     normalizeBrightnessMode,
+    normalizeCameraMotionSensitivity,
     normalizeClockBrightness,
     normalizeCoverArtDelay,
     normalizeHexColor,
@@ -117,6 +119,7 @@ export function createAppStateEventHandlersFeature(
     // ── State Event Handlers ──────────────────────────────────────────
     const createSseHandlers: SseHandlerFactory = () => {
         return {
+            ...cameraControlHandlers(runtime),
             "text-button_order": function (this: any, val?: any) {
                 if (gridPreviewBlockedByRotationStartup() || state.screenRotationInitialFallbackActive) {
                     runtime.orderReceived = !!(val && val.trim());
@@ -235,6 +238,13 @@ export function createAppStateEventHandlersFeature(
             },
             "number-screensaver_timeout": function (this: any, val?: any, d?: any) {
                 applyScreensaverTimeoutState(d);
+            },
+            "number-camera_motion__sensitivity": function (this: any, val?: any) {
+                state.cameraMotionSensitivity = normalizeCameraMotionSensitivity(val);
+                if (els.setCameraSensitivity) {
+                    els.setCameraSensitivity.value = state.cameraMotionSensitivity;
+                    els.setCameraSensitivityVal.textContent = state.cameraMotionSensitivity + "%";
+                }
             },
             "number-home_screen_timeout": function (this: any, val?: any) {
                 state.homeScreenTimeout = parseFloat(val) || 0;
@@ -377,7 +387,7 @@ export function createAppStateEventHandlersFeature(
             },
             "text-screensaver_mode": function (this: any, val?: any) {
                 state._screensaverModeReceived = true;
-                state.screensaverMode = val === "sensor" || val === "timer" || val === "disabled" ? val : "disabled";
+                state.screensaverMode = val === "sensor" || val === "timer" || val === "camera" || val === "disabled" ? val : "disabled";
                     if (els.setSsMode)
                         els.setSsMode(getActiveScreensaverMode());
             },

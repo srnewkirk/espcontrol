@@ -571,6 +571,8 @@ export function createWebStyles(dragAnimation: boolean): string {
         "border-radius:8px;text-align:center;display:none}" +
         ".sp-sun-info.sp-visible{display:block}" +
         ".sp-field-hint{font-size:.75rem;color:var(--text2);margin-top:6px;margin-bottom:16px}" +
+        ".sp-camera-preview{margin-top:12px}" +
+        ".sp-camera-preview img{display:block;width:100%;aspect-ratio:16/9;border-radius:var(--action-r);background:#000}" +
         ".sp-fw-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:12px}" +
         ".sp-fw-info-row{min-height:28px;margin-bottom:8px}" +
         ".sp-fw-overview{margin-bottom:0}" +

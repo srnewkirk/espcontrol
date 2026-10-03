@@ -30,6 +30,11 @@
 #include "panel_identity_endpoint.h"
 #include "button_grid.h"
 
+// Optional components (such as camera_motion) provide this to add their own
+// endpoints while the web server starts.
+extern "C" void camera_motion_register_web_handlers(
+    esphome::web_server_idf::AsyncWebServer *server) __attribute__((weak));
+
 extern "C" void espcontrol_register_web_server_handlers(
     esphome::web_server_idf::AsyncWebServer *server) {
 #ifdef USE_WEBSERVER
@@ -41,6 +46,7 @@ extern "C" void espcontrol_register_web_server_handlers(
   espcontrol::configuration::register_panel_config_capabilities_endpoint(*server);
   espcontrol::configuration::register_panel_config_read_endpoint(*server);
   espcontrol::configuration::register_panel_config_write_endpoint(*server);
+  if (camera_motion_register_web_handlers != nullptr) camera_motion_register_web_handlers(server);
 #else
   (void) server;
 #endif

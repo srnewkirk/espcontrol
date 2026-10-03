@@ -14,6 +14,9 @@
 # Touch wake is handled by the touchscreen on_touch in device.yaml.
 # =============================================================================
 
+substitutions:
+  camera_occupancy_prevents_sleep: "false"
+
 button:
   - platform: template
     id: screen_wake
@@ -494,7 +497,7 @@ script:
                 id(media_player_sleep_prevention_enabled).state &&
                 id(media_player_playing);
             if (leaving_scheduled_clock && !onboarding &&
-                (id(screensaver_mode).state == "timer" || sensor_idle) &&
+                (id(screensaver_mode).state == "timer" || id(screensaver_mode).state == "camera" || sensor_idle) &&
                 !playback_prevents_sleep) {
               const auto idle_mode = id(screensaver_action_clock)
                   ? espcontrol::DisplayMode::CLOCK
@@ -772,7 +775,8 @@ script:
                 return false;
               }
               return id(screensaver_mode).state == "timer" ||
-                     id(screensaver_mode).state == "sensor";
+                     id(screensaver_mode).state == "sensor" ||
+                     id(screensaver_mode).state == "camera";
           then:
             - delay: !lambda |-
                 float val = id(screensaver_timeout).state;
@@ -783,6 +787,7 @@ script:
                   lambda: |-
                     return id(espcontrol_app).display().target_mode_is(
                                espcontrol::DisplayMode::COVER_ART) ||
+                           (${camera_occupancy_prevents_sleep}) ||
                            alarm_display_takeover_active() ||
                            (id(cover_art_screensaver_enabled).state &&
                             id(media_player_sleep_prevention_enabled).state &&
@@ -1344,6 +1349,7 @@ script:
               const bool cover_art_disabled_mode_delay =
                 id(screensaver_mode).state != "timer" &&
                 id(screensaver_mode).state != "sensor" &&
+                id(screensaver_mode).state != "camera" &&
                 show_after_seconds > 0.0f;
               return (id(media_player_sleep_prevention_enabled).state ||
                       cover_art_touch_return_pending ||
